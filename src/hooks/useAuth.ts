@@ -37,7 +37,12 @@ function saveUser(user: User) {
   localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+function getApiBase(): string {
+  if (import.meta.env.DEV) return "";
+  return "https://api.202616.xyz";
+}
+
+const API_BASE = /* @__NOINLINE */ getApiBase();
 
 async function fetchApi<T>(url: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(API_BASE + url, {

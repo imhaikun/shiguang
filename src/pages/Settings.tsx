@@ -10,7 +10,7 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState("设置已保存！");
 
-  const [siteTitle, setSiteTitle] = useState("拾光笔记");
+  const [siteTitle, setSiteTitle] = useState("那斯棧");
   const [siteDescription, setSiteDescription] = useState(
     "写代码，也写生活。一个关于设计、代码与生活的个人博客。"
   );

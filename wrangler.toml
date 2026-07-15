@@ -2,18 +2,21 @@ name = "shiguang-api"
 main = "server/worker.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[routes]]
+pattern = "api.202616.xyz"
+custom_domain = true
 
 [[kv_namespaces]]
 binding = "USERS_KV"
 id = "e77b75665b8843c19f49b291dff3fed4"
 
+[[r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "xyz"
+
 [vars]
 MAIL_FROM = ""
-MAIL_FROM_NAME = "拾光笔记"
-
-[pages]
-project_name = "shiguang"
-build_output_dir = "dist"
-
-[env.production.pages]
-env_vars = { VITE_API_BASE_URL = "https://shiguang-api.imloyo.workers.dev" }
+MAIL_FROM_NAME = "那斯棧"
+IMAGE_CDN_URL = "https://images.202616.xyz"

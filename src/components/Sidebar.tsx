@@ -26,13 +26,13 @@ export default function Sidebar() {
             background: "linear-gradient(135deg, var(--blog-primary), #93c5fd)",
           }}
         >
-          屿
+          I
         </div>
         <span
           className="blog-body font-semibold"
           style={{ color: "var(--blog-foreground)", lineHeight: 1.4 }}
         >
-          林屿
+          Imloyo
         </span>
         <span className="blog-caption">写代码，也写生活</span>
       </div>

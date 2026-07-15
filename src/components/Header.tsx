@@ -20,7 +20,7 @@ export default function Header() {
           className="font-display text-2xl font-semibold tracking-tight text-foreground no-underline transition-opacity hover:opacity-80"
           style={{ letterSpacing: "-0.01em" }}
         >
-          拾光笔记
+          那斯棧
         </Link>
 
         <nav className="flex items-center gap-5 sm:gap-8">

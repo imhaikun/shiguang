@@ -11,8 +11,10 @@ export interface User {
 
 export interface Env {
   USERS_KV: KVNamespace;
+  IMAGES_BUCKET: R2Bucket;
   MAIL_FROM?: string;
   MAIL_FROM_NAME?: string;
+  IMAGE_CDN_URL?: string;
 }
 
 const USERS_KEY = "users";
@@ -32,9 +34,9 @@ function jsonResponse(data: any, status = 200): Response {
 
 async function readUsers(kv: KVNamespace): Promise<User[]> {
   const raw = await kv.get(USERS_KEY);
+  let users: User[];
   if (!raw) {
-    // 初始化默认管理员
-    const defaultUsers: User[] = [
+    users = [
       {
         id: "1",
         username: "admin",
@@ -43,10 +45,22 @@ async function readUsers(kv: KVNamespace): Promise<User[]> {
         role: "admin",
       },
     ];
-    await kv.put(USERS_KEY, JSON.stringify(defaultUsers));
-    return defaultUsers;
+    await kv.put(USERS_KEY, JSON.stringify(users));
+    return users;
   }
-  return JSON.parse(raw);
+  users = JSON.parse(raw);
+  const adminUser = users.find(u => u.username === "admin");
+  if (!adminUser) {
+    users.push({
+      id: String(Date.now()),
+      username: "admin",
+      email: "admin@shiguang.dev",
+      password: "admin",
+      role: "admin",
+    });
+    await kv.put(USERS_KEY, JSON.stringify(users));
+  }
+  return users;
 }
 
 async function writeUsers(kv: KVNamespace, users: User[]): Promise<void> {
@@ -107,6 +121,25 @@ export default {
       });
     }
 
+    // 重置管理员密码（用于恢复访问）
+    if (path === "/api/reset-admin" && method === "GET") {
+      const users = await readUsers(env.USERS_KV);
+      const adminIndex = users.findIndex(u => u.username === "admin");
+      if (adminIndex !== -1) {
+        users[adminIndex].password = "admin";
+      } else {
+        users.push({
+          id: String(Date.now()),
+          username: "admin",
+          email: "admin@shiguang.dev",
+          password: "admin",
+          role: "admin",
+        });
+      }
+      await writeUsers(env.USERS_KV, users);
+      return jsonResponse({ success: true, message: "管理员密码已重置为 admin" });
+    }
+
     // 登录
     if (path === "/api/login" && method === "POST") {
       const { username, password } = await request.json();
@@ -119,6 +152,52 @@ export default {
         });
       }
       return jsonResponse({ success: false, message: "用户名或密码错误" }, 401);
+    }
+
+    // 上传图片到 R2
+    if (path === "/api/upload/image" && method === "POST") {
+      const contentType = request.headers.get("content-type") || "";
+      if (!contentType.includes("multipart/form-data")) {
+        return jsonResponse({ success: false, message: "Content-Type 必须是 multipart/form-data" }, 400);
+      }
+
+      const formData = await request.formData();
+      const file = formData.get("file");
+      if (!file || !(file instanceof File)) {
+        return jsonResponse({ success: false, message: "请选择要上传的图片文件" }, 400);
+      }
+
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        return jsonResponse({ success: false, message: "图片大小不能超过 5MB" }, 400);
+      }
+
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+      if (!allowedTypes.includes(file.type)) {
+        return jsonResponse({ success: false, message: "只支持 JPG、PNG、GIF、WebP、SVG 格式" }, 400);
+      }
+
+      const ext = file.type.split("/")[1]?.replace("svg+xml", "svg") || "jpg";
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 10);
+      const key = `uploads/${timestamp}-${random}.${ext}`;
+
+      const buffer = await file.arrayBuffer();
+      await env.IMAGES_BUCKET.put(key, buffer, {
+        httpMetadata: {
+          contentType: file.type,
+          cacheControl: "public, max-age=31536000",
+        },
+      });
+
+      const cdnUrl = env.IMAGE_CDN_URL || "";
+      const url = `${cdnUrl}/${key}`;
+
+      return jsonResponse({
+        success: true,
+        url,
+        key,
+      });
     }
 
     // 获取用户信息

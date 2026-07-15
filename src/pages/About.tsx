@@ -13,20 +13,20 @@ export default function About() {
             background: "linear-gradient(135deg, var(--blog-primary), #93c5fd)",
           }}
         >
-          屿
+          I
         </div>
         <h1 className="blog-h1 mb-2" style={{ fontSize: "2.25rem" }}>
-          林屿
+          Imloyo
         </h1>
         <p className="blog-caption">写代码，也写生活</p>
       </header>
 
       <div className="prose-editorial">
         <p>
-          你好，我是林屿。一名前端工程师，也是一个喜欢在深夜写字的人。
+          你好，我是 Imloyo。一名前端工程师，也是一个喜欢在深夜写字的人。
         </p>
         <p>
-          这个博客叫"拾光笔记"，取"拾起时光"之意。在这里，我会记录一些关于代码、设计与生活的碎片——它们或许零散，但都是真实思考过的痕迹。
+          这个博客叫"那斯棧"。在这里，我会记录一些关于代码、设计与生活的碎片——它们或许零散，但都是真实思考过的痕迹。
         </p>
         <blockquote>
           相信慢的力量，相信文字的温度，相信把一件事做到克制，本身就是一种美。
@@ -37,7 +37,7 @@ export default function About() {
         </p>
         <h2>关于这个站点</h2>
         <p>
-          "拾光笔记"使用 React 与 Tailwind CSS 搭建，采用衬线标题与无衬线正文搭配的编辑式排版，主色是一种温暖的赤陶土。它支持亮色与暗色两种主题，并在不同屏幕尺寸下自适应。希望这里的阅读体验，能让你愿意多停留一会儿。
+          "那斯棧"使用 React 与 Tailwind CSS 搭建，采用衬线标题与无衬线正文搭配的编辑式排版，主色是一种清新的浅蓝色。它支持亮色与暗色两种主题，并在不同屏幕尺寸下自适应。希望这里的阅读体验，能让你愿意多停留一会儿。
         </p>
       </div>
 
@@ -88,7 +88,7 @@ export default function About() {
         </h3>
         <div className="flex flex-col sm:flex-row gap-3">
           <a
-            href="mailto:linyu@shiguang.dev"
+            href="mailto:imloyo@qq.com"
             className="inline-flex items-center gap-2 rounded-md blog-small no-underline transition-colors hover:text-primary hover:border-primary/50"
             style={{
               padding: "10px 16px",
@@ -96,7 +96,7 @@ export default function About() {
               color: "var(--blog-muted-foreground)",
             }}
           >
-            <Mail className="h-4 w-4" /> linyu@shiguang.dev
+            <Mail className="h-4 w-4" /> imloyo@qq.com
           </a>
           <a
             href="https://github.com"

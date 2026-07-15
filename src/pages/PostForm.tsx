@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, Eye, AlertCircle } from "lucide-react";
 import { getPostBySlug, getAllTags, type Post } from "@/data/posts";
+import RichEditor from "@/components/RichEditor";
 
 export default function PostForm() {
   const navigate = useNavigate();
@@ -185,19 +186,10 @@ export default function PostForm() {
                 >
                   内容 <span style={{ color: "#dc2626" }}>*</span>
                 </label>
-                <textarea
+                <RichEditor
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="<p>在这里输入文章内容，支持 HTML 标签</p>"
-                  rows={12}
-                  className="w-full rounded-md px-4 py-3 text-sm font-mono focus:outline-none transition-colors resize-none"
-                  style={{
-                    border: errors.content ? "1px solid #dc2626" : "1px solid var(--blog-border)",
-                    background: "var(--blog-background)",
-                    color: "var(--blog-foreground)",
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = errors.content ? "#dc2626" : "var(--blog-border)")}
+                  onChange={setContent}
+                  placeholder="在这里输入文章内容..."
                 />
                 {errors.content && (
                   <p className="mt-1 text-xs flex items-center gap-1" style={{ color: "#dc2626" }}>
