@@ -105,7 +105,7 @@ export default function PostList() {
                       <span
                         className="text-xs px-2 py-0.5 rounded-full"
                         style={{
-                          background: "rgba(59,130,246,0.08)",
+                          background: "rgba(16,185,129,0.08)",
                           color: "var(--blog-primary)",
                         }}
                       >

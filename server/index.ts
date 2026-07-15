@@ -164,9 +164,9 @@ app.post("/api/auth/forgot-password/send-code", async (req, res) => {
       subject: "拾光笔记 - 密码重置验证码",
       html: `
         <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #3b82f6;">拾光笔记</h2>
+          <h2 style="color: #10b981;">那斯棧</h2>
           <p>您正在进行密码重置操作，验证码如下：</p>
-          <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #3b82f6; margin: 24px 0;">${code}</div>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #10b981; margin: 24px 0;">${code}</div>
           <p style="color: #666;">验证码 10 分钟内有效，请勿泄露给他人。</p>
         </div>
       `,

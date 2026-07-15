@@ -412,7 +412,7 @@ export default function Settings() {
                 onClick={() => setTheme("light")}
                 className="w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors"
                 style={{
-                  background: theme === "light" ? "rgba(59,130,246,0.08)" : "var(--blog-background)",
+                  background: theme === "light" ? "rgba(16,185,129,0.08)" : "var(--blog-background)",
                   border: theme === "light" ? "1px solid var(--blog-primary)" : "1px solid var(--blog-border)",
                   color: theme === "light" ? "var(--blog-primary)" : "var(--blog-muted-foreground)",
                 }}
@@ -431,7 +431,7 @@ export default function Settings() {
                 onClick={() => setTheme("dark")}
                 className="w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors"
                 style={{
-                  background: theme === "dark" ? "rgba(96,165,250,0.1)" : "var(--blog-background)",
+                  background: theme === "dark" ? "rgba(52,211,153,0.1)" : "var(--blog-background)",
                   border: theme === "dark" ? "1px solid var(--blog-primary)" : "1px solid var(--blog-border)",
                   color: theme === "dark" ? "var(--blog-primary)" : "var(--blog-muted-foreground)",
                 }}

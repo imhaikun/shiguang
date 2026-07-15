@@ -69,7 +69,7 @@ export default function Sidebar() {
           style={{
             padding: "8px 10px",
             color: "var(--blog-primary)",
-            background: "rgba(59,130,246,0.06)",
+            background: "rgba(16,185,129,0.06)",
           }}
         >
           <BookOpen className="h-4 w-4" />

@@ -21,7 +21,7 @@ export default function FeaturedPost({ post }: { post: Post }) {
           className="blog-caption ml-2 px-2 py-0.5 rounded-sm"
           style={{
             color: "var(--blog-primary)",
-            background: "rgba(59,130,246,0.06)",
+            background: "rgba(16,185,129,0.06)",
           }}
         >
           置顶

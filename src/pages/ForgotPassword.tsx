@@ -219,7 +219,7 @@ export default function ForgotPassword() {
                 type="button"
                 onClick={() => setStep(2)}
                 className="w-full py-3 rounded-md text-sm font-medium transition-opacity hover:opacity-90"
-                style={{ background: "rgba(59,130,246,0.08)", color: "var(--blog-primary)" }}
+                style={{ background: "rgba(16,185,129,0.08)", color: "var(--blog-primary)" }}
               >
                 我已收到验证码
               </button>

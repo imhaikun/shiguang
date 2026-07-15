@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── 设计令牌：浅蓝色调 ── */
+/* ── 设计令牌：浅绿色调 ── */
 :root,
 .light {
   --blog-background: #ffffff;
@@ -11,13 +11,13 @@
   --blog-card-foreground: #1e293b;
   --blog-popover: #ffffff;
   --blog-popover-foreground: #1e293b;
-  --blog-primary: #3b82f6;
+  --blog-primary: #10b981;
   --blog-primary-foreground: #ffffff;
   --blog-muted: #94a3b8;
   --blog-muted-foreground: #475569;
   --blog-border: #e2e8f0;
   --blog-input: #e2e8f0;
-  --blog-ring: #3b82f6;
+  --blog-ring: #10b981;
 }
 
 .dark {
@@ -27,13 +27,13 @@
   --blog-card-foreground: #e2e8f0;
   --blog-popover: #1e293b;
   --blog-popover-foreground: #e2e8f0;
-  --blog-primary: #60a5fa;
+  --blog-primary: #34d399;
   --blog-primary-foreground: #0f172a;
   --blog-muted: #64748b;
   --blog-muted-foreground: #94a3b8;
   --blog-border: #334155;
   --blog-input: #334155;
-  --blog-ring: #60a5fa;
+  --blog-ring: #34d399;
 }
 
 :root {
@@ -147,11 +147,11 @@
   padding: 0.25em 0 0.25em 1.25em;
   font-style: italic;
   color: var(--blog-foreground);
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(16, 185, 129, 0.05);
   border-radius: 0 6px 6px 0;
 }
 .dark .prose-editorial blockquote {
-  background: rgba(96, 165, 250, 0.08);
+  background: rgba(52, 211, 153, 0.08);
 }
 .prose-editorial ul,
 .prose-editorial ol {
