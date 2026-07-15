@@ -1,0 +1,217 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── 设计令牌：与设计稿严格一致 ── */
+:root,
+.light {
+  --blog-background: #faf8f5;
+  --blog-foreground: #2c2c2c;
+  --blog-card: #ffffff;
+  --blog-card-foreground: #2c2c2c;
+  --blog-popover: #ffffff;
+  --blog-popover-foreground: #2c2c2c;
+  --blog-primary: #c2703e;
+  --blog-primary-foreground: #ffffff;
+  --blog-muted: #a8a29e;
+  --blog-muted-foreground: #57534e;
+  --blog-border: #e7e5e4;
+  --blog-input: #e7e5e4;
+  --blog-ring: #c2703e;
+}
+
+.dark {
+  --blog-background: #1a1917;
+  --blog-foreground: #e7e5e4;
+  --blog-card: #262523;
+  --blog-card-foreground: #e7e5e4;
+  --blog-popover: #262523;
+  --blog-popover-foreground: #e7e5e4;
+  --blog-primary: #d4885a;
+  --blog-primary-foreground: #1a1917;
+  --blog-muted: #78716c;
+  --blog-muted-foreground: #a8a29e;
+  --blog-border: #3d3a37;
+  --blog-input: #3d3a37;
+  --blog-ring: #d4885a;
+}
+
+:root {
+  font-family: "Inter", "Noto Sans SC", -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  body {
+    background: var(--blog-background);
+    color: var(--blog-foreground);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+@layer components {
+  /* ── 排版层级 ── */
+  .blog-h1 {
+    font-family: var(--tw-font-display, "Playfair Display"), "Noto Serif SC", Georgia, serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--blog-foreground);
+  }
+  .blog-h2 {
+    font-family: "Playfair Display", "Noto Serif SC", Georgia, serif;
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--blog-foreground);
+  }
+  .blog-h3 {
+    font-family: "Playfair Display", "Noto Serif SC", Georgia, serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--blog-foreground);
+  }
+  .blog-body {
+    font-family: "Inter", "Noto Sans SC", sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.75;
+    color: var(--blog-muted-foreground);
+  }
+  .blog-small {
+    font-family: "Inter", "Noto Sans SC", sans-serif;
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--blog-muted);
+  }
+  .blog-caption {
+    font-family: "Inter", "Noto Sans SC", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--blog-muted);
+    letter-spacing: 0.02em;
+  }
+}
+
+/* ── 文章正文排版（prose） ── */
+.prose-editorial {
+  font-family: "Inter", "Noto Sans SC", sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.85;
+  color: var(--blog-muted-foreground);
+}
+.prose-editorial > * + * {
+  margin-top: 1.25em;
+}
+.prose-editorial h2 {
+  font-family: "Playfair Display", "Noto Serif SC", Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--blog-foreground);
+  margin-top: 2em;
+  letter-spacing: -0.01em;
+}
+.prose-editorial h3 {
+  font-family: "Playfair Display", "Noto Serif SC", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--blog-foreground);
+  margin-top: 1.75em;
+}
+.prose-editorial p {
+  margin-top: 1.25em;
+}
+.prose-editorial a {
+  color: var(--blog-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: opacity 0.2s;
+}
+.prose-editorial a:hover {
+  opacity: 0.75;
+}
+.prose-editorial blockquote {
+  border-left: 3px solid var(--blog-primary);
+  padding: 0.25em 0 0.25em 1.25em;
+  font-style: italic;
+  color: var(--blog-foreground);
+  background: rgba(194, 112, 62, 0.05);
+  border-radius: 0 6px 6px 0;
+}
+.dark .prose-editorial blockquote {
+  background: rgba(212, 136, 90, 0.08);
+}
+.prose-editorial ul,
+.prose-editorial ol {
+  padding-left: 1.5em;
+}
+.prose-editorial ul {
+  list-style: disc;
+}
+.prose-editorial ol {
+  list-style: decimal;
+}
+.prose-editorial li {
+  margin-top: 0.5em;
+}
+.prose-editorial code {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.875em;
+  background: var(--blog-border);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  color: var(--blog-foreground);
+}
+.prose-editorial pre {
+  background: var(--blog-card);
+  border: 1px solid var(--blog-border);
+  border-radius: 8px;
+  padding: 1em 1.25em;
+  overflow-x: auto;
+}
+.prose-editorial pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+.prose-editorial strong {
+  color: var(--blog-foreground);
+  font-weight: 600;
+}
+.prose-editorial hr {
+  border: none;
+  border-top: 1px solid var(--blog-border);
+  margin: 2em 0;
+}
+
+/* ── 工具类 ── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 链接箭头悬停位移 */
+.arrow-link:hover .arrow {
+  transform: translateX(3px);
+}
+.arrow {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
