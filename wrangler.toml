@@ -8,7 +8,7 @@ compatibility_flags = ["nodejs_compat"]
 # 创建后将下面的 id 替换为实际值
 [[kv_namespaces]]
 binding = "USERS_KV"
-id = "替换为你的KV命名空间ID"
+id = "e77b75665b8843c19f49b291dff3fed4"
 
 # 邮件发送配置（MailChannels - Cloudflare 推荐的免费邮件服务）
 # 使用前需在 Cloudflare 域名 DNS 中配置 SPF 和 DKIM 记录：
