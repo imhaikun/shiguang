@@ -3,18 +3,17 @@ main = "server/worker.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
-# KV 命名空间
-# 创建命令：npx wrangler kv:namespace create USERS_KV
-# 创建后将下面的 id 替换为实际值
 [[kv_namespaces]]
 binding = "USERS_KV"
 id = "e77b75665b8843c19f49b291dff3fed4"
 
-# 邮件发送配置（MailChannels - Cloudflare 推荐的免费邮件服务）
-# 使用前需在 Cloudflare 域名 DNS 中配置 SPF 和 DKIM 记录：
-#   SPF: TXT 记录 @ 值为 "v=spf1 include:relay.mailchannels.net ~all"
-#   DKIM: TXT 记录 mailchannels._domainkey 值为你生成的 DKIM 公钥
-# 如果不需要忘记密码功能，可留空 MAIL_FROM
 [vars]
 MAIL_FROM = ""
 MAIL_FROM_NAME = "拾光笔记"
+
+[pages]
+project_name = "shiguang"
+build_output_dir = "dist"
+
+[env.production.pages]
+env_vars = { VITE_API_BASE_URL = "https://shiguang-api.imloyo.workers.dev" }
