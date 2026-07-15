@@ -11,10 +11,8 @@ export interface User {
 
 export interface Env {
   USERS_KV: KVNamespace;
-  SMTP_HOST?: string;
-  SMTP_PORT?: string;
-  SMTP_USER?: string;
-  SMTP_PASS?: string;
+  MAIL_FROM?: string;
+  MAIL_FROM_NAME?: string;
 }
 
 const USERS_KEY = "users";
@@ -60,18 +58,16 @@ function generateCode(): string {
 }
 
 async function sendEmail(env: Env, to: string, code: string): Promise<boolean> {
-  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
+  if (!env.MAIL_FROM) {
     return false;
   }
-  // Workers 中发送邮件需要使用 MailChannels 或第三方 API
-  // 这里使用 MailChannels（Cloudflare 推荐）
   try {
     const response = await fetch("https://api.mailchannels.net/tx/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: to }] }],
-        from: { email: env.SMTP_USER, name: "拾光笔记" },
+        from: { email: env.MAIL_FROM, name: env.MAIL_FROM_NAME || "拾光笔记" },
         subject: "拾光笔记 - 密码重置验证码",
         content: [
           {

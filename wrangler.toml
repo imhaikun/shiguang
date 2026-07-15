@@ -3,15 +3,18 @@ main = "server/worker.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
-# KV 命名空间（运行 `wrangler kv:namespace create USERS_KV` 后填入 id）
+# KV 命名空间
+# 创建命令：npx wrangler kv:namespace create USERS_KV
+# 创建后将下面的 id 替换为实际值
 [[kv_namespaces]]
 binding = "USERS_KV"
 id = "替换为你的KV命名空间ID"
 
-# SMTP 配置（MailChannels 免费版已停止服务，建议使用其他邮件服务）
-# 如果不需要邮件功能，可留空，忘记密码功能将不可用
+# 邮件发送配置（MailChannels - Cloudflare 推荐的免费邮件服务）
+# 使用前需在 Cloudflare 域名 DNS 中配置 SPF 和 DKIM 记录：
+#   SPF: TXT 记录 @ 值为 "v=spf1 include:relay.mailchannels.net ~all"
+#   DKIM: TXT 记录 mailchannels._domainkey 值为你生成的 DKIM 公钥
+# 如果不需要忘记密码功能，可留空 MAIL_FROM
 [vars]
-SMTP_HOST = ""
-SMTP_PORT = "587"
-SMTP_USER = ""
-SMTP_PASS = ""
+MAIL_FROM = ""
+MAIL_FROM_NAME = "拾光笔记"

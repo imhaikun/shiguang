@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Mail, Lock, KeyRound, ArrowLeft, AlertCircle, Check, Loader2 } from "lucide-react";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
 export default function ForgotPassword() {
   const navigate = useNavigate();
 
@@ -55,7 +57,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/forgot-password/send-code", {
+      const res = await fetch(API_BASE + "/api/auth/forgot-password/send-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -96,7 +98,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/forgot-password/reset", {
+      const res = await fetch(API_BASE + "/api/auth/forgot-password/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), code: code.trim(), newPassword }),
