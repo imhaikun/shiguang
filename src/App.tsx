@@ -9,6 +9,7 @@ import About from "@/pages/About";
 import TagResults from "@/pages/TagResults";
 import SearchResults from "@/pages/SearchResults";
 import Login from "@/pages/Login";
+import ForgotPassword from "@/pages/ForgotPassword";
 import Dashboard from "@/pages/Dashboard";
 import PostList from "@/pages/PostList";
 import PostForm from "@/pages/PostForm";
@@ -28,6 +29,7 @@ export default function App() {
         </Route>
 
         <Route path="/admin/login" element={<Login />} />
+        <Route path="/admin/forgot-password" element={<ForgotPassword />} />
 
         <Route
           path="/admin/*"

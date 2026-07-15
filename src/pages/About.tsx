@@ -10,7 +10,7 @@ export default function About() {
         <div
           className="w-24 h-24 rounded-full flex items-center justify-center text-white font-display text-3xl font-semibold mb-5 shadow-sm"
           style={{
-            background: "linear-gradient(135deg, var(--blog-primary), #e8b89a)",
+            background: "linear-gradient(135deg, var(--blog-primary), #93c5fd)",
           }}
         >
           屿

@@ -44,7 +44,7 @@ export default function Login() {
           <div
             className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white font-display text-2xl font-semibold"
             style={{
-              background: "linear-gradient(135deg, var(--blog-primary), #e8b89a)",
+              background: "linear-gradient(135deg, var(--blog-primary), #93c5fd)",
             }}
           >
             拾
@@ -157,14 +157,21 @@ export default function Login() {
           <span style={{ color: "var(--blog-primary)", fontWeight: 500 }}>admin</span>
         </p>
 
-        <p className="mt-4 text-center">
+        <div className="mt-6 flex items-center justify-center gap-4">
+          <Link
+            to="/admin/forgot-password"
+            className="blog-caption no-underline transition-colors hover:text-primary"
+          >
+            忘记密码？
+          </Link>
+          <span style={{ color: "var(--blog-border)" }}>|</span>
           <Link
             to="/"
             className="blog-caption no-underline transition-colors hover:text-primary"
           >
             返回前台首页
           </Link>
-        </p>
+        </div>
       </div>
     </div>
   );

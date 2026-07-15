@@ -23,7 +23,7 @@ export default function Sidebar() {
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center text-white font-display text-xl font-semibold shadow-sm"
           style={{
-            background: "linear-gradient(135deg, var(--blog-primary), #e8b89a)",
+            background: "linear-gradient(135deg, var(--blog-primary), #93c5fd)",
           }}
         >
           屿
@@ -69,7 +69,7 @@ export default function Sidebar() {
           style={{
             padding: "8px 10px",
             color: "var(--blog-primary)",
-            background: "rgba(194,112,62,0.08)",
+            background: "rgba(59,130,246,0.06)",
           }}
         >
           <BookOpen className="h-4 w-4" />

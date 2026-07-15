@@ -244,7 +244,7 @@ export default function PostForm() {
                       key={tag}
                       className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md"
                       style={{
-                        background: "rgba(194,112,62,0.1)",
+                        background: "rgba(59,130,246,0.08)",
                         border: "1px solid var(--blog-primary)",
                         color: "var(--blog-primary)",
                       }}
@@ -289,7 +289,7 @@ export default function PostForm() {
                         onClick={() => addTag(tag)}
                         className="text-xs px-2 py-1 rounded transition-colors hover:bg-primary/5"
                         style={{
-                          background: tags.includes(tag) ? "rgba(194,112,62,0.1)" : "transparent",
+                          background: tags.includes(tag) ? "rgba(59,130,246,0.08)" : "transparent",
                           color: tags.includes(tag) ? "var(--blog-primary)" : "var(--blog-muted)",
                         }}
                       >
