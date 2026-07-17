@@ -225,6 +225,111 @@ interface Post {
 
 const DEFAULT_POSTS: Post[] = [
   {
+    slug: "esxi-nut-ups-shutdown",
+    title: "VMware ESXi 使用 NUT 实现 NAS 共享 UPS 断电自动关机",
+    date: "2026-07-10",
+    excerpt: "在 VMware ESXi 下安装 NUT 客户端，配合华芸 NAS 实现 UPS 断电时自动安全关机，保护数据安全。",
+    tags: ["进阶实战", "教程", "ESXi", "NAS", "UPS"],
+    content: `<p>家里的 NAS 和服务器共用一台 UPS，但 UPS 只有一个 USB 接口，只能连一台设备。怎么让多台设备都能在断电时自动安全关机呢？答案是 NUT（Network UPS Tools）—— 一台设备当 NUT 服务器，其他设备当客户端，通过网络监听 UPS 状态。</p><p>本文以华芸 NAS（Asustor AS6604T）作为 NUT 服务器，VMware ESXi 8.0 Update 3 作为客户端，讲解完整的配置过程。其他品牌的 NAS 和 ESXi 版本操作基本一致。</p><h2>一、准备工作</h2><h3>1.1 启用 ESXi 的 SSH 功能</h3><p>ESXi 默认关闭 SSH，需要先手动开启：</p><ol><li>进入 ESXi WEB 管理后台</li><li>点击左侧 <strong>主机</strong>，切换到 <strong>操作</strong> 菜单</li><li>找到服务选项，启用 <strong>Secure Shell (SSH)</strong> 和 <strong>ESXi Shell</strong></li></ol><h3>1.2 修改软件安装接受级别</h3><p>ESXi 默认只接受官方签名的软件包，NUT 客户端是社区维护的，需要调整安全级别：</p><ol><li>进入 <strong>管理</strong> → <strong>安全和用户</strong> 选项卡</li><li>点击左侧 <strong>接受级别</strong></li><li>将软件接受级别修改为 <strong>社区</strong></li></ol><h3>1.3 下载 NUT 客户端软件包</h3><p>下载 ESXi 平台的 NUT 客户端安装包：</p><ul><li>下载地址：<code>http://rene.margar.fr/download/1483/</code></li><li>通过 SFTP 工具（如 Xftp）将安装包上传到 ESXi 的 <code>/tmp</code> 目录</li></ul><h2>二、安装 NUT 客户端</h2><p>通过 SSH 连接到 ESXi 主机，执行以下命令：</p><pre><code>cd /tmp
+tar -xzvf NutClient-ESXi-2.8.3-2.7.1.x86_64.tar
+sh upsmon-install.sh</code></pre><p>安装成功后会显示如下信息：</p><pre><code>Installation Result
+   Message: Operation finished successfully.
+   Reboot Required: false
+   VIBs Installed: Margar_bootbank_upsmon_2.8.3-2.7.1
+   VIBs Removed:
+   VIBs Skipped:</code></pre><h2>三、配置 NUT 客户端</h2><p>安装完成后，回到 ESXi WEB 后台进行参数配置：</p><ol><li>进入 <strong>管理</strong> → <strong>系统</strong> 选项卡</li><li>在 <strong>高级设置</strong> 中搜索 <strong>NUT</strong></li><li>一共 6 个参数，按以下说明配置</li></ol><blockquote><p>如果找不到 NUT 相关设置项，可以尝试重启 ESXi 主机后再查看。</p></blockquote><h3>参数说明</h3><table><tr><td>参数名</td><td>说明</td><td>示例值</td></tr><tr><td>UserVars.NutFinalDelay</td><td>关机前等待时间（秒）</td><td>60</td></tr><tr><td>UserVars.NutMailTo</td><td>通知邮箱（未开启邮件通知可留空）</td><td>-</td></tr><tr><td>UserVars.NutPassword</td><td>NUT 服务器密码</td><td>AdmUps1111</td></tr><tr><td>UserVars.NutSendMail</td><td>是否发送邮件通知（0=否，1=是）</td><td>0</td></tr><tr><td>UserVars.NutUpsName</td><td>UPS 服务器地址</td><td>ASUSTOR-UPS@192.168.50.15</td></tr><tr><td>UserVars.NutUser</td><td>NUT 用户名</td><td>upsadmin</td></tr></table><blockquote><p><strong>注意</strong>：<code>NutUpsName</code> 的格式是 <code>UPS名称@NAS的IP地址</code>，需要和 NUT 服务器端的配置一致。华芸 NAS 默认的 UPS 名称和密码可以在 NAS 的 UPS 设置里查到。</p></blockquote><h3>重启 NutClient 服务</h3><p>参数配置完成后，需要重启服务才能生效：</p><ol><li>进入 <strong>管理</strong> → <strong>服务</strong> 选项卡</li><li>找到 <strong>NutClient</strong> 服务</li><li>点击 <strong>重新启动</strong> 按钮</li><li>将服务设置为 <strong>随主机启动和停止</strong></li></ol><blockquote><p>以后每次修改 NUT 配置参数后，都需要重启 NutClient 服务。</p></blockquote><h2>四、配置虚拟机自动开关机</h2><p>ESXi 主机会自动关机了，但上面跑的虚拟机还不会安全关闭。需要配置虚拟机的自动启动/停止策略：</p><ol><li>进入 <strong>管理</strong> → <strong>系统</strong> 选项卡</li><li>打开左侧 <strong>自动启动</strong> 菜单</li><li>点击 <strong>编辑设置</strong>，启用自动启动功能</li><li>设置关机操作类型为 <strong>客户机关闭</strong>（需要虚拟机安装了 VMware Tools）</li></ol><p>然后在虚拟机列表中，依次点击每台需要自动开关机的虚拟机，选择 <strong>启用</strong>。</p><blockquote><p><strong>前提条件</strong>：虚拟机必须安装 VMware Tools，否则无法实现软关机，只能强制断电。</p></blockquote><h2>五、验证配置</h2><h3>5.1 验证 UPS 连接</h3><p>在 ESXi SSH 中执行以下命令，查看能否正常获取 UPS 状态：</p><pre><code>/opt/nut/bin/upsc ASUSTOR-UPS@192.168.50.15</code></pre><p>把 IP 换成你 NAS 的地址。如果能输出 UPS 的详细信息（电池电压、负载、状态等），说明连接正常。</p><h3>5.2 验证防火墙规则</h3><p>确认 NUT 相关的防火墙规则已启用：</p><pre><code>esxcli network firewall ruleset list</code></pre><p>在输出中找到 <code>NutServer</code>，状态应为 <code>true</code>。</p><h3>5.3 实际断电测试</h3><p>最后一步，也是最关键的一步——实际拔掉 UPS 的电源插头，测试 NAS 和 ESXi 是否会按顺序自动安全关机。</p><blockquote><p><strong>建议</strong>：第一次测试前，确保所有重要数据都已保存，虚拟机里没有正在运行的重要任务。</p></blockquote><h2>注意事项</h2><ul><li>UPS 容量要足够支撑所有设备正常关机的时间</li><li>关机延迟时间（NutFinalDelay）建议设置在 60 秒以上，给 NAS 和虚拟机留够关机时间</li><li>定期测试 UPS 电池健康状态，避免关键时刻掉链子</li><li>ESXi 升级后可能需要重新安装 NUT 客户端 VIB</li></ul>`,
+  },
+  {
+    slug: "bitlocker-encryption-in-progress",
+    title: "解决 BitLocker 加密进行中：重启后分区出现加密锁",
+    date: "2026-07-08",
+    excerpt: "电脑重启后突然发现磁盘分区多了一把小锁？BitLocker 莫名其妙开始加密？本文教你如何查看状态并关闭加密。",
+    tags: ["踩坑实录", "Windows", "BitLocker"],
+    content: `<p>某天重启电脑后，突然发现某个磁盘分区上出现了一把小锁图标，显示"加密进行中"。明明没有手动开启 BitLocker，怎么就自动加密了呢？</p><p>别慌，这通常是因为设备加密（Device Encryption）被自动触发了。本文教你如何查看加密状态并关闭 BitLocker 加密。</p><h2>问题现象</h2><p>在"此电脑"中可以看到磁盘分区图标上有一个锁的标志，鼠标悬停显示"BitLocker 加密进行中"。</p><h2>一、查看加密状态</h2><p>首先以管理员身份打开命令提示符（CMD）或 PowerShell，执行以下命令查看所有分区的 BitLocker 状态：</p><pre><code>manage-bde -status</code></pre><p>这个命令会列出所有分区的加密状态，包括：加密百分比、加密方法、保护状态等信息。</p><h2>二、关闭 BitLocker 加密</h2><p>如果确定不需要 BitLocker 加密，可以执行以下命令关闭。以 C 盘为例：</p><pre><code>manage-bde -off c:</code></pre><blockquote><p>把 <code>c:</code> 替换为你要解密的分区盘符。</p></blockquote><p>执行命令后，系统会开始解密过程，这个过程可能需要一些时间，具体取决于磁盘大小和数据量。解密过程中电脑可以正常使用，但速度可能会稍慢。</p><p>可以再次使用 <code>manage-bde -status</code> 命令查看解密进度。</p><h2>三、为什么会自动加密？</h2><p>如果你确认自己没有手动开启 BitLocker，但它却自动加密了，通常有以下几种原因：</p><h3>1. 设备加密（Device Encryption）</h3><p>Windows 10/11 的家庭版和专业版都有一个"设备加密"功能，当满足以下条件时会自动启用：</p><ul><li>电脑支持 Modern Standby（现代待机）</li><li>有 TPM 2.0 芯片</li><li>使用微软账户登录</li></ul><p>这是微软的默认安全策略，很多人不知不觉中就被加密了。</p><h3>2. 新买的品牌机</h3><p>很多品牌的笔记本电脑出厂时就默认开启了 BitLocker 设备加密，第一次开机联网后自动激活。</p><h3>3. Windows 更新触发</h3><p>某些 Windows 功能更新可能会触发设备加密的自动启用。</p><h2>四、关闭设备加密（从根源解决）</h2><p>如果不想让 BitLocker 自动开启，可以关闭设备加密功能：</p><ol><li>打开 <strong>设置</strong> → <strong>隐私和安全性</strong> → <strong>设备加密</strong></li><li>将设备加密的开关关闭</li></ol><blockquote><p>注意：只有用管理员账户登录才能修改这个设置。</p></blockquote><h2>注意事项</h2><ul><li><strong>解密过程不要中断</strong>：解密时不要重启电脑、不要断电，否则可能导致数据损坏</li><li><strong>备份恢复密钥</strong>：如果以后还想用 BitLocker，一定要保存好恢复密钥，可以存到微软账户或打印出来</li><li><strong>确认数据安全</strong>：解密前确保重要数据已有备份，以防万一</li></ul>`,
+  },
+  {
+    slug: "v2raya-cannot-start-fix",
+    title: "v2rayA 无法启动？WEBUI 空白一片的排查与解决",
+    date: "2026-07-05",
+    excerpt: "打开 v2rayA 的 WEBUI 一片空白，一直显示检测中？本文从日志分析入手，详解两种常见原因及解决方法。",
+    tags: ["踩坑实录", "v2rayA", "v2ray", "Linux"],
+    content: `<p>安装完 v2rayA 后，打开 WEBUI 却是一片空白，一直转圈显示"检测中"？别着急，90% 的情况都是 v2ray 内核出了问题。本文带你从查看日志入手，一步步排查和解决。</p><h2>问题现象</h2><p>打开 v2rayA 的 WEBUI 界面（默认端口 2017），页面一片空白，显示"检测中"，无法进入管理界面。</p><h2>一、查看后台日志</h2><p>首先 SSH 到服务器，查看 v2ray 和 v2rayA 的运行状态：</p><pre><code>systemctl status v2raya v2ray</code></pre><p>如果发现 v2ray 服务启动失败，再进一步查看详细日志：</p><pre><code>journalctl -u v2ray</code></pre><h2>二、常见原因一：缺少配置文件</h2><p>最常见的错误是 v2ray 找不到配置文件，日志中会出现类似这样的报错：</p><pre><code>ExecStart=/usr/bin/v2ray run -config /etc/v2ray/config.json (code=exited, status=1/FAILURE)</code></pre><p>原因是 <code>/etc/v2ray</code> 目录不存在，或者目录下没有 <code>config.json</code> 配置文件。</p><h3>解决方法</h3><p>手动下载 v2ray 的完整发行包，解压到 <code>/etc/v2ray</code> 目录下。</p><h4>步骤 1：下载 v2ray 安装包</h4><p>以 v5.37.0 版本为例（请根据实际情况选择版本）：</p><pre><code>wget https://github.com/v2fly/v2ray-core/releases/download/v5.38.0/v2ray-linux-64.zip</code></pre><blockquote><p>如果服务器访问 GitHub 慢，可以找个镜像源下载。</p></blockquote><h4>步骤 2：解压到 /etc/v2ray 目录</h4><pre><code>mkdir -p /etc/v2ray
+unzip v2ray-linux-64.zip -d /etc/v2ray</code></pre><h4>步骤 3：复制 dat 文件到 v2rayA 目录</h4><pre><code>cp /etc/v2ray/*.dat /etc/v2raya</code></pre><h4>步骤 4：重启服务</h4><pre><code>systemctl restart v2ray v2raya</code></pre><p>重启后再查看状态，v2ray 应该就能正常启动了，WEBUI 也能正常打开。</p><h2>三、常见原因二：数据库损坏</h2><p>如果 v2ray 服务是正常的，但 WEBUI 还是空白，可能是 v2rayA 的数据库文件损坏了。</p><h3>解决方法</h3><p>删除损坏的数据库文件，让 v2rayA 重建：</p><pre><code>cd /etc/v2raya
+rm -f bolt.db boltv4.db
+systemctl restart v2raya</code></pre><blockquote><p><strong>注意</strong>：删除数据库会丢失所有配置（节点、订阅、规则等），需要重新导入。如果有备份的话可以先备份一下。</p></blockquote><h2>四、验证</h2><p>修复完成后，打开浏览器访问 <code>http://服务器IP:2017</code>，如果能正常显示登录/管理界面，说明问题已解决。</p><h2>排查思路总结</h2><p>遇到 v2rayA 无法启动的问题，按以下顺序排查：</p><ol><li>先看 <code>systemctl status</code>，确定是哪个服务有问题</li><li>再用 <code>journalctl</code> 看具体报错信息</li><li>根据错误信息针对性解决</li><li>如果服务正常但页面有问题，考虑清理浏览器缓存或换个浏览器试试</li></ol>`,
+  },
+  {
+    slug: "debian13-v2raya-install",
+    title: "Debian 13 安装和使用 v2rayA 完整教程",
+    date: "2026-07-03",
+    excerpt: "从零开始在 Debian 13 (Trixie) 上安装 v2rayA，包括软件源安装、手动安装、启动服务和基础配置全流程。",
+    tags: ["入门指南", "教程", "Debian", "Debian 13", "v2rayA"],
+    content: `<p>v2rayA 是一个基于 V2Ray 内核的 Web 管理客户端，界面简洁、功能强大，支持 Linux 平台。本文详细介绍在 Debian 13 (Trixie) 系统上安装和使用 v2rayA 的完整步骤。</p><h2>一、安装前的说明</h2><p>v2rayA 的功能依赖于 V2Ray 内核，所以需要同时安装内核和 v2rayA 前端。推荐使用官方软件源安装，方便后续更新。</p><h2>二、方法一：通过软件源安装（推荐）</h2><h3>2.1 添加公钥</h3><p>先添加 v2rayA 软件源的 GPG 公钥：</p><pre><code>wget -qO - https://apt.v2raya.org/key/public-key.asc | sudo tee /etc/apt/keyrings/v2raya.asc</code></pre><h3>2.2 添加软件源</h3><p>将 v2rayA 软件源添加到系统源列表中：</p><pre><code>echo "deb [signed-by=/etc/apt/keyrings/v2raya.asc] https://apt.v2raya.org/ v2raya main" | sudo tee /etc/apt/sources.list.d/v2raya.list</code></pre><h3>2.3 安装 v2rayA</h3><p>更新软件源并安装：</p><pre><code>sudo apt update          # 更新软件源
+sudo apt install v2raya v2ray   # 安装 v2rayA 和 V2Ray 内核</code></pre><blockquote><p>也可以安装 xray 内核替代 v2ray：<code>sudo apt install v2raya xray</code></p></blockquote><h2>三、方法二：手动安装 deb 包</h2><p>如果软件源安装失败，也可以手动下载 deb 包安装：</p><ol><li>从 GitHub Release 页面下载 v2rayA 的 deb 安装包</li><li>使用以下命令安装：</li></ol><pre><code>sudo apt install /path/to/installer_debian_xxx_vxxx.deb</code></pre><p>把路径替换为你下载的 deb 包的实际路径。V2Ray/Xray 的 deb 包也可以在官方 APT 源中找到。</p><h2>四、启动服务</h2><p>从 v2rayA 1.5 版本开始，安装后不会自动启动服务，需要手动启动并设置开机自启。</p><h3>4.1 启动 v2rayA</h3><pre><code>sudo systemctl start v2raya.service</code></pre><h3>4.2 设置开机自动启动</h3><pre><code>sudo systemctl enable v2raya.service</code></pre><h3>4.3 查看运行状态</h3><pre><code>sudo systemctl status v2raya.service</code></pre><p>看到 <code>active (running)</code> 就说明启动成功了。</p><h2>五、配置 v2rayA</h2><h3>5.1 打开管理界面</h3><p>用浏览器打开以下地址（把 IP 换成你服务器的 IP）：</p><pre><code>http://服务器IP:2017</code></pre><p>v2rayA 默认监听 2017 端口。如果是本机安装，直接访问 <code>http://localhost:2017</code> 即可。</p><h3>5.2 创建管理员账号</h3><p>首次访问需要创建管理员账号，设置用户名和密码。</p><h3>5.3 导入节点</h3><p>进入管理界面后：</p><ol><li>点击左侧的 <strong>节点</strong> 或 <strong>订阅</strong></li><li>可以手动创建节点，也可以导入订阅链接</li><li>推荐使用订阅，方便批量管理和更新</li></ol><h3>5.4 选择节点并连接</h3><p>在节点列表中选择一个节点，点击右上角的 <strong>启动</strong> 按钮即可开始使用。</p><h2>六、常见设置</h2><h3>6.1 系统代理</h3><p>v2rayA 默认开启透明代理，系统全局流量都会走代理。可以在设置中调整代理模式：</p><ul><li><strong>全局</strong>：所有流量都走代理</li><li><strong>绕过大陆</strong>：国内网站直连，国外网站走代理</li><li><strong>直连</strong>：不使用代理</li></ul><h3>6.2 端口设置</h3><p>默认端口配置：</p><ul><li>HTTP 代理：20171</li><li>SOCKS5 代理：20170</li><li>管理界面：2017</li></ul><p>可以在设置中根据需要修改。</p><h2>七、安全建议</h2><ul><li>如果服务器在公网上，建议给 v2rayA 管理界面加上访问密码</li><li>可以用防火墙限制 2017 端口的访问 IP，只允许可信 IP 访问</li><li>定期更新 v2rayA 和 V2Ray 内核版本</li></ul>`,
+  },
+  {
+    slug: "debian13-resolv-conf-immutable",
+    title: "Debian 13 无法修改 /etc/resolv.conf？文件被锁定的解决方法",
+    date: "2026-07-01",
+    excerpt: "Debian 13 修改 DNS 配置时，/etc/resolv.conf 即使有 root 权限也改不了？原来是文件被加上了 i 属性。",
+    tags: ["踩坑实录", "Debian", "Debian 13", "DNS", "Linux"],
+    content: `<p>在 Debian 13 上配置 DNS，编辑 <code>/etc/resolv.conf</code> 时发现一个奇怪的问题——明明是 root 用户，却保存不了，提示文件只读。这是怎么回事呢？</p><p>答案是：文件被设置了不可修改属性（immutable），即使用户是 root 也不能直接改。</p><h2>问题现象</h2><p>用 root 权限编辑 <code>/etc/resolv.conf</code>，保存时提示文件只读，无法修改。用 <code>ls -l</code> 看文件权限也是正常的，owner 就是 root。</p><h2>一、查看文件属性</h2><p>Linux 的文件除了普通的 rwx 权限外，还有一些特殊属性，用 <code>lsattr</code> 命令查看：</p><pre><code>lsattr /etc/resolv.conf</code></pre><p>如果输出中有一个 <code>i</code> 字母，说明文件被设置了 immutable（不可修改）属性，这种状态下：</p><ul><li>不能修改文件内容</li><li>不能删除文件</li><li>不能重命名文件</li><li>不能创建硬链接</li></ul><p>即便是 root 用户也不行，这是一种比普通权限更高的保护机制。</p><h2>二、解除文件锁定</h2><p>使用 <code>chattr</code> 命令移除 <code>i</code> 属性：</p><pre><code>chattr -i /etc/resolv.conf</code></pre><p>再用 <code>lsattr</code> 查看，确认 <code>i</code> 属性已经消失：</p><pre><code>lsattr /etc/resolv.conf</code></pre><p>没有 <code>i</code> 了，就可以正常编辑了。</p><h2>三、修改并保存 DNS 配置</h2><p>现在就可以正常编辑 <code>/etc/resolv.conf</code> 了，比如：</p><pre><code>nano /etc/resolv.conf</code></pre><p>添加或修改 DNS 服务器：</p><pre><code>nameserver 8.8.8.8
+nameserver 1.1.1.1</code></pre><p>保存退出即可。</p><h2>四、为什么会有 i 属性？</h2><p>Debian 13 中 <code>/etc/resolv.conf</code> 默认就带有 <code>i</code> 属性，主要是为了防止被意外修改。在现代 Linux 系统中，DNS 配置通常由 NetworkManager、systemd-resolved 等服务统一管理，直接手动改 <code>resolv.conf</code> 不是推荐的做法。</p><h2>五、推荐的 DNS 配置方式</h2><p>与其直接改 <code>resolv.conf</code>，更推荐通过系统的网络管理工具来配置 DNS：</p><h3>方式一：使用 systemd-resolved</h3><p>编辑 <code>/etc/systemd/resolved.conf</code>：</p><pre><code>[Resolve]
+DNS=8.8.8.8 1.1.1.1
+FallbackDNS=223.5.5.5</code></pre><p>然后重启服务：</p><pre><code>systemctl restart systemd-resolved</code></pre><h3>方式二：在网卡配置中设置</h3><p>如果是静态 IP，可以在 <code>/etc/network/interfaces</code> 或 NetworkManager 的配置中设置 DNS。</p><h2>补充：chattr 常用属性</h2><p>除了 <code>i</code> 属性，<code>chattr</code> 还有一些常用的属性：</p><table><tr><td>属性</td><td>作用</td></tr><tr><td>a</td><td>只能追加（append），不能修改和删除已有内容</td></tr><tr><td>i</td><td>完全不可修改（immutable）</td></tr><tr><td>s</td><td>删除时安全清除数据（secure deletion）</td></tr><tr><td>u</td><td>删除后可以恢复（undeletable）</td></tr></table><blockquote><p><code>chattr +i</code> 添加属性，<code>chattr -i</code> 移除属性。</p></blockquote>`,
+  },
+  {
+    slug: "debian12-upgrade-to-debian13",
+    title: "从 Debian 12 升级到 Debian 13 (Trixie) 详细教程",
+    date: "2026-06-28",
+    excerpt: "一步步带你从 Debian 12 (Bookworm) 安全升级到 Debian 13 (Trixie)，包含准备工作、软件源修改、升级执行和验证全流程。",
+    tags: ["入门指南", "教程", "Debian", "Debian 12", "Debian 13", "系统升级"],
+    content: `<p>Debian 13 (代号 Trixie) 已经发布，想体验新版本又不想重装系统？本文带你一步步完成从 Debian 12 (Bookworm) 到 Debian 13 的原地升级。</p><blockquote><p><strong>重要提示</strong>：升级有风险，请务必备份重要数据！建议在生产环境升级前先在测试环境验证。</p></blockquote><h2>一、准备工作</h2><h3>1.1 备份重要数据</h3><p>升级前先备份关键数据（如 <code>/home</code> 目录、配置文件、数据库等），可以用 <code>rsync</code>、<code>tar</code> 或外部存储设备：</p><pre><code># 示例：备份 /home 目录到外部硬盘
+rsync -av /home /path/to/external/drive/</code></pre><h3>1.2 更新当前系统到最新</h3><p>先确保当前的 Debian 12 系统是最新状态，减少升级时的问题：</p><pre><code># 更新包列表
+apt update
+
+# 升级已安装的软件包
+apt upgrade -y
+
+# 处理依赖并完整升级（确保系统完整性）
+apt full-upgrade -y
+
+# 清理无用的软件包
+apt autoremove -y
+apt autoclean</code></pre><h3>1.3 关闭不必要的服务</h3><p>升级过程中建议关闭非必要服务（如 Web 服务器、数据库等），减少升级过程中的冲突风险：</p><pre><code># 示例：关闭 Caddy 服务
+systemctl stop caddy</code></pre><h2>二、修改软件源配置</h2><p>Debian 12 的代号是 <code>bookworm</code>，Debian 13 的代号是 <code>trixie</code>。需要把软件源里所有的 <code>bookworm</code> 替换成 <code>trixie</code>。</p><h3>2.1 编辑主源列表</h3><p>使用 nano 编辑器修改主源文件：</p><pre><code>nano /etc/apt/sources.list</code></pre><p>将文件中所有的 <code>bookworm</code> 替换为 <code>trixie</code>。示例：</p><pre><code>deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
+deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware</code></pre><h3>2.2 处理第三方源</h3><p>检查 <code>/etc/apt/sources.list.d/</code> 目录下的第三方源（如 Docker、Docker 等）：</p><pre><code>ls /etc/apt/sources.list.d/</code></pre><p>对于每个第三方源，需要确认它是否已经支持 Debian 13。如果不确定，建议先注释掉或暂时移除，等升级完成后再处理。</p><blockquote><p><strong>警告</strong>：不兼容的第三方源可能导致升级失败，甚至系统损坏。不确定的话宁可先禁用。</p></blockquote><h2>三、执行系统升级</h2><h3>3.1 更新包索引</h3><p>修改完软件源后，先更新一下包列表，让系统识别 Debian 13 的软件包：</p><pre><code>apt update</code></pre><p>如果有报错，根据错误信息排查。常见的是 GPG  key 过期或第三方源不兼容。</p><h3>3.2 执行最小升级</h3><p>先执行一次最小升级，只升级那些不会导致软件包被删除的包：</p><pre><code>apt upgrade -y</code></pre><blockquote><p>这一步很重要，可以避免直接 full-upgrade 时一次性处理太多依赖变化导致的问题。</p></blockquote><h3>3.3 执行完整升级</h3><p>然后执行完整的系统升级：</p><pre><code>apt full-upgrade -y</code></pre><p><code>full-upgrade</code> 会处理依赖关系的变化，包括移除过时的包、安装新的依赖包等，这是真正的系统版本升级。</p><h3>3.4 处理配置文件冲突</h3><p>升级过程中可能会出现配置文件替换的提示，常见选项：</p><ul><li><strong>N / O</strong>：保留当前配置（推荐，除非你明确需要新版本配置）</li><li><strong>Y / I</strong>：替换为新版本的配置（自定义设置会丢失）</li><li><strong>D</strong>：显示新旧配置的差异</li><li><strong>Z</strong>：打开 shell 手动处理</li></ul><blockquote><p>一般建议选 N，保留自己的配置。等升级完成后再根据需要手动调整。</p></blockquote><h2>四、完成升级并验证</h2><h3>4.1 重启系统</h3><p>升级完成后，必须重启系统以应用新内核和关键组件更新：</p><pre><code>reboot</code></pre><h3>4.2 验证系统版本</h3><p>重启后登录系统，检查是否成功升级到 Debian 13：</p><pre><code># 方法一：查看版本文件
+cat /etc/debian_version
+
+# 方法二：使用 lsb_release
+lsb_release -a</code></pre><p>如果输出中包含 <code>13</code> 或 <code>trixie</code>，就说明升级成功了。</p><h3>4.3 后续清理</h3><p>确认系统正常运行后，可以清理一下旧的软件包：</p><pre><code>apt autoremove -y
+apt autoclean</code></pre><h2>五、常见问题</h2><h3>升级失败开不了机怎么办？</h3><p>如果升级过程中断电或出错导致系统无法启动，可以用安装 U 盘进入救援模式，尝试修复。</p><h3>第三方软件不兼容？</h3><p>部分软件可能暂时不支持 Debian 13，建议等官方更新后再安装，或者用 Docker 容器运行旧版本。</p><h3>升级后网络不通？</h3><p>检查网卡名称是否变化（Debian 升级有时会改变网卡命名规则），查看 <code>/etc/network/interfaces</code> 或 NetworkManager 配置。</p>`,
+  },
+  {
+    slug: "asustor-nas-ipv6-eui64",
+    title: "华硕 NAS IPv6 后缀设置为 EUI-64：解决防火墙无法配置的问题",
+    date: "2026-06-25",
+    excerpt: "华芸 NAS 升级后 IPv6 地址生成方式变了，导致路由器防火墙规则失效？通过修改内核参数改回 EUI-64 格式。",
+    tags: ["踩坑实录", "NAS", "华硕", "IPv6", "EUI64"],
+    content: `<p>升级华硕 NAS 的 ADM 系统后，突然发现 IPv6 的端口映射用不了了。排查了一圈才发现，原来是 NAS 的 IPv6 地址后缀变了——从之前的 EUI-64 格式变成了随机生成的隐私地址。</p><p>路由器上的防火墙规则是按固定的 IPv6 后缀写的，地址一变，规则自然就失效了。</p><h2>问题背景</h2><p>华硕 NAS 在 ADM 4.2.6.RPI1（2024-01-22）版本中，修改了 IPv6 地址的生成机制，从原来的 EUI-64 方式改为了隐私地址（Privacy Extensions），目的是增强 IPv6 地址的隐私性和安全性。</p><p>但对于需要在路由器上配置 IPv6 防火墙或端口转发的用户来说，这就麻烦了——地址后缀不再固定，每次重启或重新连接网络后都可能变化。</p><h2>解决方案</h2><p>通过修改内核参数，将 IPv6 地址生成模式改回 EUI-64 方式，让 IPv6 后缀固定下来。</p><h3>方法一：直接修改内核参数（立即生效）</h3><p>SSH 登录到 NAS，切换到 root 用户后，执行以下命令：</p><pre><code>sysctl -w net.ipv6.conf.eth0.addr_gen_mode=0
+sysctl -w net.ipv6.conf.eth1.addr_gen_mode=0</code></pre><p>如果你的 NAS 有更多网口，对应修改 <code>eth2</code>、<code>eth3</code> 等。</p><blockquote><p><code>addr_gen_mode = 0</code> 表示使用 EUI-64 方式生成 IPv6 地址，这样地址后缀是基于 MAC 地址计算的，固定不变。</p></blockquote><p>这种方法的优点是<strong>立即生效</strong>，不需要重启。但缺点是<strong>重启设备后会还原</strong>。</p><h3>方法二：写入配置文件（永久生效）</h3><p>如果希望重启后依然有效，需要将配置写入 <code>/etc/sysctl.conf</code> 文件：</p><pre><code>echo "net.ipv6.conf.eth0.addr_gen_mode = 0" >> /etc/sysctl.conf
+echo "net.ipv6.conf.eth1.addr_gen_mode = 0" >> /etc/sysctl.conf</code></pre><p>然后执行以下命令让配置立即生效：</p><pre><code>sysctl -p</code></pre><blockquote><p><strong>注意</strong>：华硕 NAS 的系统文件可能会在升级 ADM 时被覆盖，升级后建议检查一下配置是否还在。</p></blockquote><h3>方法三：开机脚本自动执行</h3><p>如果担心系统升级后配置丢失，也可以写一个开机自动执行的脚本，每次启动时设置一次。</p><p>创建脚本文件，比如 <code>/usr/local/bin/ipv6-eui64.sh</code>：</p><pre><code>#!/bin/sh
+sysctl -w net.ipv6.conf.eth0.addr_gen_mode=0
+sysctl -w net.ipv6.conf.eth1.addr_gen_mode=0</code></pre><p>然后加入开机启动项（具体方式取决于你的 NAS 系统）。</p><h2>验证是否生效</h2><p>修改后，重新获取 IPv6 地址（断开重连网络，或重启 NAS），然后查看 IPv6 地址：</p><pre><code>ifconfig eth0
+# 或
+ip addr show eth0</code></pre><p>观察 IPv6 地址的后半部分（后缀），如果是基于 MAC 地址的 EUI-64 格式（通常包含 <code>ff:fe</code>），说明设置成功。</p><h2>什么是 EUI-64？</h2><p>EUI-64（Extended Unique Identifier 64-bit）是一种根据网卡 MAC 地址生成 IPv6 接口标识的标准方法：</p><ul><li>MAC 地址是 48 位，EUI-64 是 64 位</li><li>在 MAC 地址的第 3 字节和第 4 字节之间插入 <code>ff:fe</code></li><li>然后将第 7 位（U/L 位）取反</li></ul><p>这样生成的 IPv6 后缀是固定的，只要 MAC 地址不变，后缀就不变。</p><h2>注意事项</h2><ul><li>使用 EUI-64 地址的隐私性较差，因为 MAC 地址是固定的，容易被跟踪</li><li>如果只是家用 NAS，固定地址带来的便利性远大于隐私风险</li><li>如果是移动设备（笔记本、手机），建议使用隐私地址</li><li>修改前建议记录一下原来的配置，以便出问题时恢复</li></ul><h2>参考资料</h2><ul><li>Linux 内核文档关于 IPv6 addr_gen_mode 的说明</li><li>华芸 NAS 官方社区的相关讨论</li></ul>`,
+  },
+  {
+    slug: "dpkg-error-code-1-fix",
+    title: "解决 /usr/bin/dpkg returned an error code (1) 错误的方法",
+    date: "2026-07-17",
+    excerpt: "Debian/Ubuntu 系统 apt upgrade 时遇到 dpkg 返回错误码 1？本文教你快速修复 dpkg 状态数据库损坏问题。",
+    tags: ["踩坑实录", "Linux", "apt", "Ubuntu", "Debian"],
+    content: `<p>在 Debian/Ubuntu 系统中使用 <code>apt upgrade -y</code> 或 <code>apt install</code> 安装/升级软件包时，可能会遇到 dpkg 返回错误码 1 的问题。本文详细介绍错误原因和修复方法。</p><h2>问题描述</h2><p>在执行系统更新或软件安装时，出现如下错误提示：</p><pre><code>Error: Sub-process /usr/bin/dpkg returned an error code (1)</code></pre><p>这个错误通常是由于 dpkg 的状态数据库损坏，或软件包安装过程意外中断导致的。</p><p><img src="/static/img/4ce1a1f7702d6ea6fd49f8cb530bb40e.62079de7-488b-463e-b70c-696fa2689369.webp" alt="错误截图"></p><h2>彻底修复方法</h2><p>如果常规方法无效，可以通过重建 dpkg 的 info 目录来彻底解决：</p><h3>步骤 1：进入 dpkg 目录</h3><p>首先切换到 dpkg 的数据目录：</p><pre><code>cd /var/lib/dpkg</code></pre><h3>步骤 2：备份 info 目录</h3><p>将现有的 <code>info</code> 目录重命名为备份，防止数据丢失：</p><pre><code>sudo mv info info.bak</code></pre><h3>步骤 3：创建新的 info 目录</h3><p>创建一个新的空 <code>info</code> 目录：</p><pre><code>sudo mkdir info</code></pre><h3>步骤 4：重新更新系统</h3><p>重新执行系统更新命令，让 dpkg 重建状态数据：</p><pre><code>sudo apt-get upgrade</code></pre><p><img src="/static/img/83e08be1f28ce8365a0e89e4b5211188.03493488-b19f-421e-8d49-f157651f587c.webp" alt="操作示意图"></p><h2>更温和的解决方案</h2><blockquote><p><strong>提示</strong>：以上方法比较彻底。如果问题较轻，可以先尝试以下几种更温和的方案：</p></blockquote><h3>方法一：重新配置未完成的包</h3><p>如果有软件包安装到一半被中断，可以尝试重新配置：</p><pre><code>sudo dpkg --configure -a</code></pre><h3>方法二：强制修复依赖</h3><p>修复损坏的依赖关系：</p><pre><code>sudo apt-get install -f</code></pre><h3>方法三：清理缓存后重试</h3><p>清理 apt 缓存并重新更新软件源：</p><pre><code>sudo apt-get clean
+sudo apt-get update</code></pre><blockquote><p>如果以上方法都无效，再使用本文介绍的 info 目录重建方案。</p></blockquote><h2>注意事项</h2><ul><li>操作前建议备份重要数据</li><li>info.bak 目录确认系统正常后可以删除</li><li>如果问题反复出现，建议检查硬盘是否有坏道</li></ul>`,
+  },
+  {
     slug: "debian-samba-guide",
     title: "Debian/Ubuntu 系统 Samba 共享服务搭建完整教程",
     date: "2026-07-16",
