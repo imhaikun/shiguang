@@ -1,19 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Save, Palette, Bell, Shield, User, Lock, AlertCircle, Check } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 export default function Settings() {
-  const { theme, setTheme } = useTheme();
+  const { mode, setMode } = useTheme();
   const { user, updateProfile, changePassword } = useAuth();
+
+  const { settings, loaded, loadSettings, saveSettings } = useSiteSettings();
 
   const [saved, setSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState("设置已保存！");
 
-  const [siteTitle, setSiteTitle] = useState("那斯棧");
+  const [siteTitle, setSiteTitle] = useState("那斯小棧");
   const [siteDescription, setSiteDescription] = useState(
-    "写代码，也写生活。一个关于设计、代码与生活的个人博客。"
+    "在代码与硬盘的缝隙里，记录每一次 NAS 折腾的踩坑与顿悟。"
   );
+
+  useEffect(() => {
+    if (!loaded) loadSettings();
+  }, [loaded, loadSettings]);
+
+  useEffect(() => {
+    if (loaded) {
+      setSiteTitle(settings.title);
+      setSiteDescription(settings.description);
+    }
+  }, [loaded, settings]);
 
   const [username, setUsername] = useState(user?.username ?? "admin");
   const [email, setEmail] = useState(user?.email ?? "");
@@ -30,8 +44,13 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2500);
   };
 
-  const handleSaveSite = () => {
-    showSuccess("站点信息已保存！");
+  const handleSaveSite = async () => {
+    const ok = await saveSettings(siteTitle, siteDescription);
+    if (ok) {
+      showSuccess("站点信息已保存！");
+    } else {
+      setProfileError("保存失败，请稍后重试");
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -409,16 +428,16 @@ export default function Settings() {
             </h3>
             <div className="space-y-3">
               <button
-                onClick={() => setTheme("light")}
+                onClick={() => setMode("light")}
                 className="w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors"
                 style={{
-                  background: theme === "light" ? "rgba(16,185,129,0.08)" : "var(--blog-background)",
-                  border: theme === "light" ? "1px solid var(--blog-primary)" : "1px solid var(--blog-border)",
-                  color: theme === "light" ? "var(--blog-primary)" : "var(--blog-muted-foreground)",
+                  background: mode === "light" ? "rgba(16,185,129,0.08)" : "var(--blog-background)",
+                  border: mode === "light" ? "1px solid var(--blog-primary)" : "1px solid var(--blog-border)",
+                  color: mode === "light" ? "var(--blog-primary)" : "var(--blog-muted-foreground)",
                 }}
               >
                 <span>亮色模式</span>
-                {theme === "light" && (
+                {mode === "light" && (
                   <span
                     className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
                     style={{ background: "var(--blog-primary)", color: "#fff" }}
@@ -428,16 +447,35 @@ export default function Settings() {
                 )}
               </button>
               <button
-                onClick={() => setTheme("dark")}
+                onClick={() => setMode("dark")}
                 className="w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors"
                 style={{
-                  background: theme === "dark" ? "rgba(52,211,153,0.1)" : "var(--blog-background)",
-                  border: theme === "dark" ? "1px solid var(--blog-primary)" : "1px solid var(--blog-border)",
-                  color: theme === "dark" ? "var(--blog-primary)" : "var(--blog-muted-foreground)",
+                  background: mode === "dark" ? "rgba(52,211,153,0.1)" : "var(--blog-background)",
+                  border: mode === "dark" ? "1px solid var(--blog-primary)" : "var(--blog-border)",
+                  color: mode === "dark" ? "var(--blog-primary)" : "var(--blog-muted-foreground)",
                 }}
               >
                 <span>暗色模式</span>
-                {theme === "dark" && (
+                {mode === "dark" && (
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
+                    style={{ background: "var(--blog-primary)", color: "#fff" }}
+                  >
+                    ✓
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setMode("auto")}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors"
+                style={{
+                  background: mode === "auto" ? "rgba(16,185,129,0.08)" : "var(--blog-background)",
+                  border: mode === "auto" ? "1px solid var(--blog-primary)" : "1px solid var(--blog-border)",
+                  color: mode === "auto" ? "var(--blog-primary)" : "var(--blog-muted-foreground)",
+                }}
+              >
+                <span>跟随系统</span>
+                {mode === "auto" && (
                   <span
                     className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
                     style={{ background: "var(--blog-primary)", color: "#fff" }}

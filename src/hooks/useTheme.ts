@@ -1,46 +1,76 @@
 import { create } from "zustand";
 
-type Theme = "light" | "dark";
+type ThemeMode = "light" | "dark" | "auto";
 
 interface ThemeState {
-  theme: Theme;
+  mode: ThemeMode;
   isDark: boolean;
-  toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
+  toggleMode: () => void;
+  setMode: (mode: ThemeMode) => void;
 }
 
-const getInitialTheme = (): Theme => {
-  if (typeof window === "undefined") return "light";
-  const saved = localStorage.getItem("theme") as Theme | null;
-  if (saved === "light" || saved === "dark") return saved;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+const getInitialMode = (): ThemeMode => {
+  if (typeof window === "undefined") return "auto";
+  const saved = localStorage.getItem("theme") as ThemeMode | null;
+  if (saved === "light" || saved === "dark" || saved === "auto") return saved;
+  return "auto";
 };
 
-const applyTheme = (theme: Theme) => {
+const getSystemTheme = (): "light" | "dark" => {
+  if (typeof window === "undefined") return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
+const getEffectiveTheme = (mode: ThemeMode): "light" | "dark" => {
+  if (mode === "auto") return getSystemTheme();
+  return mode;
+};
+
+const applyTheme = (theme: "light" | "dark") => {
   const root = document.documentElement;
   root.classList.remove("light", "dark");
   root.classList.add(theme);
   root.style.colorScheme = theme;
-  localStorage.setItem("theme", theme);
 };
 
-export const useTheme = create<ThemeState>((set, get) => ({
-  theme: getInitialTheme(),
-  isDark: getInitialTheme() === "dark",
-  toggleTheme: () => {
-    const next = get().theme === "light" ? "dark" : "light";
-    applyTheme(next);
-    set({ theme: next, isDark: next === "dark" });
-  },
-  setTheme: (theme) => {
-    applyTheme(theme);
-    set({ theme, isDark: theme === "dark" });
-  },
-}));
+let mediaQueryListener: (e: MediaQueryListEvent) => void | null = null;
 
-// 模块加载时立即应用初始主题，避免首屏闪烁
+export const useTheme = create<ThemeState>((set, get) => {
+  const initialMode = getInitialMode();
+  const initialTheme = getEffectiveTheme(initialMode);
+
+  if (typeof window !== "undefined") {
+    mediaQueryListener = (e) => {
+      const mode = get().mode;
+      if (mode === "auto") {
+        const newTheme = e.matches ? "dark" : "light";
+        applyTheme(newTheme);
+        set({ isDark: newTheme === "dark" });
+      }
+    };
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    mediaQuery.addEventListener("change", mediaQueryListener);
+  }
+
+  return {
+    mode: initialMode,
+    isDark: initialTheme === "dark",
+    toggleMode: () => {
+      const modes: ThemeMode[] = ["light", "dark", "auto"];
+      const currentIndex = modes.indexOf(get().mode);
+      const nextMode = modes[(currentIndex + 1) % modes.length];
+      get().setMode(nextMode);
+    },
+    setMode: (mode) => {
+      localStorage.setItem("theme", mode);
+      const effectiveTheme = getEffectiveTheme(mode);
+      applyTheme(effectiveTheme);
+      set({ mode, isDark: effectiveTheme === "dark" });
+    },
+  };
+});
+
 if (typeof window !== "undefined") {
-  applyTheme(useTheme.getState().theme);
+  applyTheme(getEffectiveTheme(useTheme.getState().mode));
 }

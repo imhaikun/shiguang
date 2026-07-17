@@ -1,12 +1,22 @@
-import { useState, type FormEvent } from "react";
+import { useState, useMemo, useEffect, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, BookOpen, Archive, Tag as TagIcon } from "lucide-react";
-import { getAllTags } from "@/data/posts";
+import { Search, Tag as TagIcon, BookOpen, Bug, Wrench, Pencil } from "lucide-react";
+import { usePosts } from "@/hooks/usePosts";
+import { categories } from "@/data/categories";
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
+  const { loaded, loadPosts, getRandomPosts, getAllTags, getPostsByTag } = usePosts();
+
+  useEffect(() => {
+    if (!loaded) {
+      loadPosts();
+    }
+  }, [loaded, loadPosts]);
+
   const tags = getAllTags();
+  const recommended = useMemo(() => getRandomPosts(5), [getRandomPosts, loaded]);
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -61,36 +71,60 @@ export default function Sidebar() {
         />
       </form>
 
-      {/* 侧边导航 */}
-      <nav className="flex flex-col gap-1">
-        <Link
-          to="/"
-          className="flex items-center gap-2 rounded-md blog-small no-underline font-medium"
+      {/* 栏目导航 */}
+      <div className="flex flex-col gap-3">
+        <span
+          className="blog-caption font-semibold uppercase"
           style={{
-            padding: "8px 10px",
-            color: "var(--blog-primary)",
-            background: "rgba(16,185,129,0.06)",
+            color: "var(--blog-muted-foreground)",
+            letterSpacing: "0.05em",
           }}
         >
-          <BookOpen className="h-4 w-4" />
-          最新文章
-        </Link>
-        <Link
-          to="/archives"
-          className="flex items-center gap-2 rounded-md blog-small no-underline transition-colors hover:text-foreground"
-          style={{ padding: "8px 10px", color: "var(--blog-muted-foreground)" }}
-        >
-          <Archive className="h-4 w-4" />
-          归档
-        </Link>
-        <span
-          className="flex items-center gap-2 rounded-md blog-small cursor-default"
-          style={{ padding: "8px 10px", color: "var(--blog-muted-foreground)" }}
-        >
-          <TagIcon className="h-4 w-4" />
-          标签云
+          栏目导航
         </span>
-      </nav>
+        <div className="flex flex-col gap-1.5">
+          {categories.map((cat) => (
+            <Link
+              key={cat.slug}
+              to={`/category/${cat.slug}`}
+              className="blog-caption no-underline transition-colors hover:text-primary flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-primary/5"
+              style={{ color: "var(--blog-muted-foreground)" }}
+            >
+              {cat.slug === "tutorial" && <BookOpen className="h-4 w-4" style={{ color: "var(--blog-primary)" }} />}
+              {cat.slug === "pitfall" && <Bug className="h-4 w-4" style={{ color: "var(--blog-primary)" }} />}
+              {cat.slug === "tools" && <Wrench className="h-4 w-4" style={{ color: "var(--blog-primary)" }} />}
+              {cat.slug === "diary" && <Pencil className="h-4 w-4" style={{ color: "var(--blog-primary)" }} />}
+              {cat.name}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* 随机推荐 */}
+      <div className="flex flex-col gap-3">
+        <span
+          className="blog-caption font-semibold uppercase"
+          style={{
+            color: "var(--blog-muted-foreground)",
+            letterSpacing: "0.05em",
+          }}
+        >
+          推荐阅读
+        </span>
+        <div className="flex flex-col gap-2">
+          {recommended.map((post) => (
+            <Link
+              key={post.slug}
+              to={`/post/${post.slug}`}
+              className="blog-caption no-underline transition-colors hover:text-primary truncate"
+              style={{ color: "var(--blog-muted-foreground)", lineHeight: 1.5 }}
+              title={post.title}
+            >
+              {post.title}
+            </Link>
+          ))}
+        </div>
+      </div>
 
       {/* 标签云 */}
       <div className="flex flex-col gap-3">
@@ -101,24 +135,29 @@ export default function Sidebar() {
             letterSpacing: "0.05em",
           }}
         >
-          标签
+          标签云
         </span>
         <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <Link
-              key={tag}
-              to={`/tag/${encodeURIComponent(tag)}`}
-              className="blog-caption no-underline transition-all hover:text-primary hover:border-primary/50"
-              style={{
-                padding: "4px 10px",
-                border: "1px solid var(--blog-border)",
-                borderRadius: "var(--blog-radius-sm)",
-                color: "var(--blog-muted-foreground)",
-              }}
-            >
-              {tag}
-            </Link>
-          ))}
+          {tags.map((tag) => {
+            const count = getPostsByTag(tag).length;
+            const sizeClass =
+              count >= 5 ? "text-sm px-3.5 py-1.5" : count >= 3 ? "text-xs px-3 py-1" : "text-xs px-2.5 py-0.5";
+            return (
+              <Link
+                key={tag}
+                to={`/tag/${encodeURIComponent(tag)}`}
+                className={`blog-caption no-underline rounded-full transition-all duration-200 hover:bg-primary hover:text-white hover:shadow-sm ${sizeClass}`}
+                style={{
+                  background: "rgba(16,185,129,0.08)",
+                  color: "var(--blog-primary)",
+                  border: "1px solid rgba(16,185,129,0.15)",
+                }}
+                title={`${count} 篇文章`}
+              >
+                {tag}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </aside>

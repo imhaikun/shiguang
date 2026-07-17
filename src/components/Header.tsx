@@ -1,26 +1,70 @@
 import { Link, NavLink } from "react-router-dom";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Monitor, ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { useTheme } from "@/hooks/useTheme";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "首页", end: true },
-  { to: "/archives", label: "归档", end: false },
+  { to: "/category/tutorial", label: "教程系列", end: false },
+  { to: "/category/pitfall", label: "踩坑实录", end: false },
+  { to: "/category/tools", label: "工具推荐", end: false },
+  { to: "/category/diary", label: "折腾日记", end: false },
   { to: "/about", label: "关于", end: false },
 ];
 
+const themeOptions = [
+  { mode: "light" as const, label: "亮色模式", icon: Sun },
+  { mode: "dark" as const, label: "暗色模式", icon: Moon },
+  { mode: "auto" as const, label: "跟随系统", icon: Monitor },
+];
+
 export default function Header() {
-  const { isDark, toggleTheme } = useTheme();
+  const { mode, isDark, toggleMode, setMode } = useTheme();
+  const { settings, loaded, loadSettings } = useSiteSettings();
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+
+  if (!loaded) {
+    void loadSettings();
+  }
+
+  const getCurrentIcon = () => {
+    if (mode === "auto") return Monitor;
+    return isDark ? Sun : Moon;
+  };
 
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-30">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link
           to="/"
-          className="font-display text-2xl font-semibold tracking-tight text-foreground no-underline transition-opacity hover:opacity-80"
-          style={{ letterSpacing: "-0.01em" }}
+          className="flex items-center gap-3 no-underline transition-opacity hover:opacity-80"
         >
-          那斯棧
+          <svg
+            className="h-8 w-10 shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            style={{ color: "var(--blog-primary)" }}
+          >
+            <rect x="2" y="2" width="20" height="18" rx="5" stroke="currentColor" strokeWidth="2"/>
+            <line x1="7" y1="20" x2="7" y2="24" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="17" y1="20" x2="17" y2="24" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="8" y1="5" x2="8" y2="17" stroke="currentColor" strokeWidth="1.5"/>
+            <line x1="13" y1="5" x2="13" y2="17" stroke="currentColor" strokeWidth="1.5"/>
+            <line x1="18" y1="5" x2="18" y2="17" stroke="currentColor" strokeWidth="1.5"/>
+            <circle cx="5" cy="15" r="1.5" fill="currentColor"/>
+            <circle cx="10.5" cy="7" r="1.5" fill="currentColor"/>
+            <circle cx="15.5" cy="7" r="1.5" fill="currentColor"/>
+          </svg>
+          <div className="flex flex-col justify-center">
+            <span className="font-display text-xl font-semibold tracking-tight leading-tight" style={{ color: "var(--blog-foreground)", letterSpacing: "0.05em" }}>
+              那斯小棧
+            </span>
+            <span className="text-[10px] font-medium tracking-[0.2em] uppercase" style={{ color: "var(--blog-muted)" }}>
+              CODE & STORAGE
+            </span>
+          </div>
         </Link>
 
         <nav className="flex items-center gap-5 sm:gap-8">
@@ -41,18 +85,55 @@ export default function Header() {
               {item.label}
             </NavLink>
           ))}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label={isDark ? "切换到亮色模式" : "切换到暗色模式"}
-            className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground hover:border-primary/50"
-          >
-            {isDark ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowThemeMenu(!showThemeMenu)}
+              aria-label="切换主题"
+              className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground hover:border-primary/50"
+            >
+              {getCurrentIcon() === Monitor ? (
+                <Monitor className="h-4 w-4" />
+              ) : isDark ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
+
+            {showThemeMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowThemeMenu(false)}
+                />
+                <div
+                  className="absolute right-0 top-full mt-1 w-36 rounded-md border border-border bg-popover p-1 shadow-lg z-50 animate-in fade-in slide-in-from-top-2"
+                >
+                  {themeOptions.map((option) => (
+                    <button
+                      key={option.mode}
+                      type="button"
+                      onClick={() => {
+                        setMode(option.mode);
+                        setShowThemeMenu(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                        mode === option.mode
+                          ? "bg-primary/10 text-primary"
+                          : "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <option.icon className="h-4 w-4" />
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
-          </button>
+          </div>
         </nav>
       </div>
     </header>

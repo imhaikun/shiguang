@@ -1,12 +1,21 @@
+import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, SearchX } from "lucide-react";
 import TwoColumn from "@/components/TwoColumn";
 import ArticleListItem from "@/components/ArticleListItem";
-import { searchPosts } from "@/data/posts";
+import { usePosts } from "@/hooks/usePosts";
 
 export default function SearchResults() {
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
+  const { loaded, loadPosts, searchPosts } = usePosts();
+
+  useEffect(() => {
+    if (!loaded) {
+      loadPosts();
+    }
+  }, [loaded, loadPosts]);
+
   const results = q ? searchPosts(q) : [];
 
   return (

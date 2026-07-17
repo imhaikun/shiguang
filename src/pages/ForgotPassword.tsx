@@ -127,12 +127,27 @@ export default function ForgotPassword() {
       >
         <div className="text-center mb-8">
           <div
-            className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white font-display text-2xl font-semibold"
+            className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
             style={{
               background: "linear-gradient(135deg, var(--blog-primary), #93c5fd)",
             }}
           >
-            拾
+            <svg
+              className="h-8 w-10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+            >
+              <rect x="2" y="2" width="20" height="18" rx="5" strokeWidth="2"/>
+              <line x1="7" y1="20" x2="7" y2="24" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="17" y1="20" x2="17" y2="24" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="8" y1="5" x2="8" y2="17" strokeWidth="1.5"/>
+              <line x1="13" y1="5" x2="13" y2="17" strokeWidth="1.5"/>
+              <line x1="18" y1="5" x2="18" y2="17" strokeWidth="1.5"/>
+              <circle cx="5" cy="15" r="1.5" fill="white" stroke="none"/>
+              <circle cx="10.5" cy="7" r="1.5" fill="white" stroke="none"/>
+              <circle cx="15.5" cy="7" r="1.5" fill="white" stroke="none"/>
+            </svg>
           </div>
           <h1 className="blog-h2 mb-2" style={{ fontSize: "1.5rem" }}>
             忘记密码

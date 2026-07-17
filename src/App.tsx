@@ -8,6 +8,7 @@ import Archives from "@/pages/Archives";
 import About from "@/pages/About";
 import TagResults from "@/pages/TagResults";
 import SearchResults from "@/pages/SearchResults";
+import CategoryPage from "@/pages/CategoryPage";
 import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
 import Dashboard from "@/pages/Dashboard";
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/archives" element={<Archives />} />
           <Route path="/about" element={<About />} />
           <Route path="/tag/:tag" element={<TagResults />} />
+          <Route path="/category/:slug" element={<CategoryPage />} />
           <Route path="/search" element={<SearchResults />} />
         </Route>
 

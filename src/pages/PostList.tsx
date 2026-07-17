@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -9,20 +9,29 @@ import {
   Tag,
   AlertCircle,
 } from "lucide-react";
-import { getAllPosts, type Post } from "@/data/posts";
+import { usePosts } from "@/hooks/usePosts";
 
 export default function PostList() {
   const navigate = useNavigate();
-  const posts = getAllPosts();
+  const { posts, loaded, loadPosts, deletePost } = usePosts();
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [deletedId, setDeletedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleDelete = (slug: string) => {
-    setDeletedId(slug);
-    setTimeout(() => {
-      setDeletedId(null);
-      setConfirmDelete(null);
-    }, 500);
+  useEffect(() => {
+    if (!loaded) loadPosts();
+  }, [loaded, loadPosts]);
+
+  const handleDelete = async (slug: string) => {
+    setDeletingId(slug);
+    const ok = await deletePost(slug);
+    if (ok) {
+      setTimeout(() => {
+        setDeletingId(null);
+        setConfirmDelete(null);
+      }, 300);
+    } else {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -88,8 +97,8 @@ export default function PostList() {
                 key={post.slug}
                 style={{
                   borderBottom: "1px solid var(--blog-border)",
-                  opacity: deletedId === post.slug ? 0 : 1,
-                  transform: deletedId === post.slug ? "translateX(-20px)" : "none",
+                  opacity: deletingId === post.slug ? 0 : 1,
+                  transform: deletingId === post.slug ? "translateX(-20px)" : "none",
                   transition: "all 0.3s ease",
                 }}
               >

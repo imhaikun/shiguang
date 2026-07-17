@@ -1,13 +1,40 @@
+import { useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Tag as TagIcon } from "lucide-react";
-import {
-  getPostBySlug,
-  getAdjacentPosts,
-  formatLongDate,
-} from "@/data/posts";
+import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Tag as TagIcon, X } from "lucide-react";
+import { formatLongDate } from "@/data/posts";
+import { usePosts } from "@/hooks/usePosts";
 
 export default function ArticleDetail() {
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  const handleImageClick = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
+    e.preventDefault();
+    const img = e.currentTarget;
+    setPreviewImage(img.src);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setPreviewImage(null);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && previewImage) {
+        closePreview();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [previewImage, closePreview]);
   const { slug = "" } = useParams();
+  const { loaded, loadPosts, getPostBySlug, getAdjacentPosts } = usePosts();
+
+  useEffect(() => {
+    if (!loaded) {
+      loadPosts();
+    }
+  }, [loaded, loadPosts]);
+
   const post = getPostBySlug(slug);
 
   if (!post) {
@@ -72,6 +99,18 @@ export default function ArticleDetail() {
       <div
         className="prose-editorial"
         dangerouslySetInnerHTML={{ __html: post.content }}
+        ref={(el) => {
+          if (el) {
+            const images = el.querySelectorAll("img");
+            images.forEach((img) => {
+              img.style.cursor = "zoom-in";
+              img.addEventListener("click", (e) => {
+                const target = e.target as HTMLImageElement;
+                setPreviewImage(target.src);
+              });
+            });
+          }
+        }}
       />
 
       {/* 分隔线 */}
@@ -146,6 +185,27 @@ export default function ArticleDetail() {
           </div>
         )}
       </nav>
+
+      {/* 图片预览模态框 */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90"
+          onClick={closePreview}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            onClick={closePreview}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={previewImage}
+            alt="预览"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </article>
   );
 }

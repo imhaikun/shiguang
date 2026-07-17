@@ -1,12 +1,21 @@
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import TwoColumn from "@/components/TwoColumn";
 import ArticleListItem from "@/components/ArticleListItem";
-import { getPostsByTag } from "@/data/posts";
+import { usePosts } from "@/hooks/usePosts";
 
 export default function TagResults() {
   const { tag = "" } = useParams();
   const decodedTag = decodeURIComponent(tag);
+  const { loaded, loadPosts, getPostsByTag } = usePosts();
+
+  useEffect(() => {
+    if (!loaded) {
+      loadPosts();
+    }
+  }, [loaded, loadPosts]);
+
   const posts = getPostsByTag(decodedTag);
 
   return (

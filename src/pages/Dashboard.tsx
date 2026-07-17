@@ -1,5 +1,6 @@
 import { FileText, Tag, Calendar, Clock } from "lucide-react";
-import { getAllPosts, getAllTags } from "@/data/posts";
+import { useEffect } from "react";
+import { usePosts } from "@/hooks/usePosts";
 
 const statCards = [
   {
@@ -29,9 +30,15 @@ const statCards = [
 ];
 
 export default function Dashboard() {
-  const posts = getAllPosts();
+  const { posts, loaded, loadPosts, getAllTags } = usePosts();
   const tags = getAllTags();
   const now = new Date();
+
+  useEffect(() => {
+    if (!loaded) {
+      loadPosts();
+    }
+  }, [loaded, loadPosts]);
   const thisMonthPosts = posts.filter(
     (p) =>
       new Date(p.date).getMonth() === now.getMonth() &&

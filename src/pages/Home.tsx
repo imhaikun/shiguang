@@ -1,9 +1,18 @@
+import { useEffect } from "react";
 import TwoColumn from "@/components/TwoColumn";
 import FeaturedPost from "@/components/FeaturedPost";
 import ArticleListItem from "@/components/ArticleListItem";
-import { getFeaturedPost, getNonFeaturedPosts } from "@/data/posts";
+import { usePosts } from "@/hooks/usePosts";
 
 export default function Home() {
+  const { loaded, loadPosts, getFeaturedPost, getNonFeaturedPosts } = usePosts();
+
+  useEffect(() => {
+    if (!loaded) {
+      loadPosts();
+    }
+  }, [loaded, loadPosts]);
+
   const featured = getFeaturedPost();
   const posts = getNonFeaturedPosts();
 

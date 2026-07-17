@@ -1,12 +1,26 @@
+import { Link } from "react-router-dom";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+
 export default function Footer() {
+  const { settings, loaded, loadSettings } = useSiteSettings();
+
+  if (!loaded) {
+    void loadSettings();
+  }
+
   return (
     <footer className="border-t border-border mt-10">
       <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col items-center justify-center gap-1.5">
         <span className="blog-caption">
-          &copy; 2026 那斯棧 &middot; 使用 React 搭建
-        </span>
-        <span className="blog-caption" style={{ color: "var(--blog-muted)" }}>
-          写代码，也写生活
+          &copy; 2026{" "}
+          <Link to="/" className="hover:text-primary transition-colors no-underline">
+            {settings.title}
+          </Link>{" "}
+          &middot; 使用{" "}
+          <a href="https://react.dev" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline">
+            React
+          </a>{" "}
+          搭建
         </span>
       </div>
     </footer>

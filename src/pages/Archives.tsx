@@ -1,8 +1,18 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Calendar, ArrowRight } from "lucide-react";
-import { getArchives, formatYearMonth, formatShortDate } from "@/data/posts";
+import { formatYearMonth, formatShortDate } from "@/data/posts";
+import { usePosts } from "@/hooks/usePosts";
 
 export default function Archives() {
+  const { loaded, loadPosts, getArchives } = usePosts();
+
+  useEffect(() => {
+    if (!loaded) {
+      loadPosts();
+    }
+  }, [loaded, loadPosts]);
+
   const archives = getArchives();
 
   return (

@@ -75,7 +75,7 @@ export default function RichEditor({
     if (mode === "rich" && editorRef.current && editorRef.current.innerHTML !== value) {
       editorRef.current.innerHTML = value || "<p></p>";
     }
-  }, []);
+  }, [value, mode]);
 
   const handleModeToggle = (newMode: "rich" | "markdown") => {
     setMode(newMode);
@@ -84,6 +84,10 @@ export default function RichEditor({
 
   const execCommand = useCallback((command: string, value?: string) => {
     if (mode !== "rich") return;
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
 
     if (command === "createLink") {
       const url = prompt("请输入链接地址：", "https://");
@@ -245,16 +249,7 @@ export default function RichEditor({
           >
             <ImageIcon className="h-5 w-5" />
           </button>
-          <div className="relative">
-            <button
-              type="button"
-              className="p-2 rounded-md transition-colors hover:bg-primary/10 hover:text-primary"
-              style={{ color: "var(--blog-foreground)" }}
-              title="更多"
-            >
-              <Plus className="h-5 w-5" />
-            </button>
-          </div>
+
         </div>
 
         <div className="flex items-center gap-2">

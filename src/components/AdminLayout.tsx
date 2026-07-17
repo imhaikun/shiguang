@@ -59,7 +59,23 @@ export default function AdminLayout() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 border-b border-border px-6 flex items-center justify-between flex-shrink-0">
-          <div>
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-7 w-9 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              style={{ color: "var(--blog-primary)" }}
+            >
+              <rect x="2" y="2" width="20" height="18" rx="5" stroke="currentColor" strokeWidth="2"/>
+              <line x1="7" y1="20" x2="7" y2="24" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="17" y1="20" x2="17" y2="24" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="8" y1="5" x2="8" y2="17" stroke="currentColor" strokeWidth="1.5"/>
+              <line x1="13" y1="5" x2="13" y2="17" stroke="currentColor" strokeWidth="1.5"/>
+              <line x1="18" y1="5" x2="18" y2="17" stroke="currentColor" strokeWidth="1.5"/>
+              <circle cx="5" cy="15" r="1.5" fill="currentColor"/>
+              <circle cx="10.5" cy="7" r="1.5" fill="currentColor"/>
+              <circle cx="15.5" cy="7" r="1.5" fill="currentColor"/>
+            </svg>
             <h1 className="blog-h3" style={{ margin: 0 }}>
               后台管理
             </h1>

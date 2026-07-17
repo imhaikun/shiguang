@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, Eye, AlertCircle } from "lucide-react";
-import { getPostBySlug, getAllTags, type Post } from "@/data/posts";
+import { usePosts } from "@/hooks/usePosts";
 import RichEditor from "@/components/RichEditor";
 
 export default function PostForm() {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug?: string }>();
   const isEdit = !!slug;
+  const { posts, loaded, loadPosts, createPost, updatePost, getAllTags, getPostBySlug } = usePosts();
 
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -17,12 +18,18 @@ export default function PostForm() {
   const [featured, setFeatured] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const availableTags = getAllTags();
   const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
-    if (isEdit && slug) {
+    if (!loaded) loadPosts();
+  }, [loaded, loadPosts]);
+
+  useEffect(() => {
+    if (isEdit && slug && loaded) {
       const post = getPostBySlug(slug);
       if (post) {
         setTitle(post.title);
@@ -33,7 +40,7 @@ export default function PostForm() {
         setFeatured(post.featured || false);
       }
     }
-  }, [isEdit, slug]);
+  }, [isEdit, slug, loaded, getPostBySlug, posts]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -45,14 +52,35 @@ export default function PostForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
-    setSaved(true);
-    setTimeout(() => {
-      navigate("/admin/posts");
-    }, 1000);
+    setSaving(true);
+    setSaveError("");
+
+    try {
+      const postData = { title, date, excerpt, content, tags, featured };
+      let result;
+      if (isEdit && slug) {
+        result = await updatePost(slug, postData);
+      } else {
+        result = await createPost(postData);
+      }
+
+      if (result) {
+        setSaved(true);
+        setTimeout(() => {
+          navigate("/admin/posts");
+        }, 1000);
+      } else {
+        setSaveError("保存失败，请稍后重试");
+      }
+    } catch {
+      setSaveError("保存失败，请稍后重试");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addTag = (tag: string) => {
@@ -311,6 +339,13 @@ export default function PostForm() {
           </div>
         </div>
 
+        {saveError && (
+          <div className="p-4 rounded-md flex items-center gap-2" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)" }}>
+            <AlertCircle className="h-4 w-4" style={{ color: "#dc2626" }} />
+            <span className="blog-small" style={{ color: "#dc2626" }}>{saveError}</span>
+          </div>
+        )}
+
         <div className="flex items-center justify-end gap-4">
           {isEdit && slug && (
             <a
@@ -325,11 +360,12 @@ export default function PostForm() {
           )}
           <button
             type="submit"
-            className="flex items-center gap-2 px-6 py-2.5 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90"
+            disabled={saving}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: "var(--blog-primary)" }}
           >
             <Save className="h-4 w-4" />
-            保存文章
+            {saving ? "保存中..." : "保存文章"}
           </button>
         </div>
       </form>
