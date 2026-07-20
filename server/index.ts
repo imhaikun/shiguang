@@ -500,7 +500,7 @@ app.post("/api/posts", (req, res) => {
     date: date || new Date().toISOString().split("T")[0],
     excerpt: excerpt || content.substring(0, 150),
     content,
-    tags: tags || [],
+    tags: (tags || []).map((t: string) => t.trim()).filter((t: string) => t),
     featured: featured || false,
   };
   posts.unshift(newPost);
@@ -516,7 +516,11 @@ app.put("/api/posts/:slug", (req, res) => {
     res.status(404).json({ success: false, message: "文章不存在" });
     return;
   }
-  posts[index] = { ...posts[index], ...req.body, slug };
+  const body = { ...req.body };
+  if (body.tags) {
+    body.tags = body.tags.map((t: string) => t.trim()).filter((t: string) => t);
+  }
+  posts[index] = { ...posts[index], ...body, slug };
   writePosts(posts);
   res.json({ success: true, post: posts[index] });
 });
@@ -612,6 +616,151 @@ app.delete("/api/tags/:name", (req, res) => {
   } else {
     res.status(404).json({ success: false, message: "标签不存在" });
   }
+});
+
+// ── 分类管理接口 ──
+
+const CATEGORIES_PATH = path.join(__dirname, "db", "categories.json");
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+const readCategories = (): Category[] => {
+  if (!fs.existsSync(CATEGORIES_PATH)) {
+    const defaultCategories: Category[] = [
+      { id: "1", name: "教程系列", slug: "tutorial", description: "详细的技术教程", createdAt: Date.now(), updatedAt: Date.now() },
+      { id: "2", name: "踩坑实录", slug: "troubleshoot", description: "遇到的问题和解决方案", createdAt: Date.now(), updatedAt: Date.now() },
+      { id: "3", name: "工具推荐", slug: "tools", description: "好用的工具推荐", createdAt: Date.now(), updatedAt: Date.now() },
+      { id: "4", name: "折腾日记", slug: "diary", description: "日常折腾记录", createdAt: Date.now(), updatedAt: Date.now() },
+    ];
+    writeCategories(defaultCategories);
+    return defaultCategories;
+  }
+  return JSON.parse(fs.readFileSync(CATEGORIES_PATH, "utf-8"));
+};
+
+const writeCategories = (categories: Category[]) => {
+  fs.writeFileSync(CATEGORIES_PATH, JSON.stringify(categories, null, 2), "utf-8");
+};
+
+const generateId = () => Math.random().toString(36).substring(2, 15);
+
+app.get("/api/categories", (_req, res) => {
+  const categories = readCategories();
+  const posts = readPosts();
+  
+  const categoriesWithCount = categories.map(cat => {
+    const count = posts.filter(p => p.category === cat.slug).length;
+    return { ...cat, count };
+  });
+  
+  res.json({ success: true, categories: categoriesWithCount });
+});
+
+app.post("/api/categories", (req, res) => {
+  const { name, slug, description } = req.body;
+  if (!name || !slug) {
+    res.status(400).json({ success: false, message: "分类名称和别名不能为空" });
+    return;
+  }
+
+  const categories = readCategories();
+  if (categories.some(c => c.name === name)) {
+    res.status(400).json({ success: false, message: "分类名称已存在" });
+    return;
+  }
+  if (categories.some(c => c.slug === slug)) {
+    res.status(400).json({ success: false, message: "分类别名已存在" });
+    return;
+  }
+
+  const newCategory: Category = {
+    id: generateId(),
+    name: name.trim(),
+    slug: slug.trim().toLowerCase(),
+    description: description ? description.trim() : "",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  categories.push(newCategory);
+  writeCategories(categories);
+  res.json({ success: true, category: newCategory });
+});
+
+app.put("/api/categories/:id", (req, res) => {
+  const { id } = req.params;
+  const { name, slug, description } = req.body;
+
+  const categories = readCategories();
+  const index = categories.findIndex(c => c.id === id);
+  if (index === -1) {
+    res.status(404).json({ success: false, message: "分类不存在" });
+    return;
+  }
+
+  if (name && categories.some(c => c.name === name && c.id !== id)) {
+    res.status(400).json({ success: false, message: "分类名称已存在" });
+    return;
+  }
+  if (slug && categories.some(c => c.slug === slug && c.id !== id)) {
+    res.status(400).json({ success: false, message: "分类别名已存在" });
+    return;
+  }
+
+  const oldSlug = categories[index].slug;
+  categories[index] = {
+    ...categories[index],
+    name: name ? name.trim() : categories[index].name,
+    slug: slug ? slug.trim().toLowerCase() : categories[index].slug,
+    description: description !== undefined ? description.trim() : categories[index].description,
+    updatedAt: Date.now(),
+  };
+
+  writeCategories(categories);
+
+  if (slug && slug.trim().toLowerCase() !== oldSlug) {
+    const posts = readPosts();
+    posts.forEach(post => {
+      if (post.category === oldSlug) {
+        post.category = slug.trim().toLowerCase();
+      }
+    });
+    writePosts(posts);
+  }
+
+  res.json({ success: true, category: categories[index] });
+});
+
+app.delete("/api/categories/:id", (req, res) => {
+  const { id } = req.params;
+
+  const categories = readCategories();
+  const index = categories.findIndex(c => c.id === id);
+  if (index === -1) {
+    res.status(404).json({ success: false, message: "分类不存在" });
+    return;
+  }
+
+  const deletedCategory = categories[index];
+  categories.splice(index, 1);
+  writeCategories(categories);
+
+  const posts = readPosts();
+  posts.forEach(post => {
+    if (post.category === deletedCategory.slug) {
+      delete post.category;
+    }
+  });
+  writePosts(posts);
+
+  res.json({ success: true, message: "分类已删除" });
 });
 
 // ── 站点设置接口 ──

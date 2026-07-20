@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   FileText,
   Tag,
+  Folder,
   LogOut,
   Settings,
   ArrowLeft,
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/admin", icon: LayoutDashboard, label: "仪表盘", end: true },
   { to: "/admin/posts", icon: FileText, label: "文章管理", end: false },
+  { to: "/admin/categories", icon: Folder, label: "分类管理", end: false },
   { to: "/admin/tags", icon: Tag, label: "标签管理", end: false },
   { to: "/admin/settings", icon: Settings, label: "设置", end: false },
 ];

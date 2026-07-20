@@ -118,7 +118,8 @@ export const usePosts = create<UsePostsState>((set, get) => ({
   },
 
   getPostsByTag: (tag) => {
-    return get().posts.filter((p) => p.tags.includes(tag));
+    const trimmedTag = tag.trim();
+    return get().posts.filter((p) => p.tags.some((t) => t.trim() === trimmedTag));
   },
 
   getRandomPosts: (count = 5) => {
@@ -128,7 +129,7 @@ export const usePosts = create<UsePostsState>((set, get) => ({
 
   getAllTags: () => {
     const tagSet = new Set<string>();
-    get().posts.forEach((p) => p.tags.forEach((t) => tagSet.add(t)));
+    get().posts.forEach((p) => p.tags.forEach((t) => tagSet.add(t.trim())));
     return Array.from(tagSet);
   },
 

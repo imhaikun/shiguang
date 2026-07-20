@@ -4,6 +4,14 @@ import { ArrowLeft, Save, Eye, AlertCircle } from "lucide-react";
 import { usePosts } from "@/hooks/usePosts";
 import RichEditor from "@/components/RichEditor";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export default function PostForm() {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug?: string }>();
@@ -15,11 +23,13 @@ export default function PostForm() {
   const [excerpt, setExcerpt] = useState("");
   const [content, setContent] = useState("<p></p>");
   const [tags, setTags] = useState<string[]>([]);
+  const [category, setCategory] = useState("");
   const [featured, setFeatured] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const availableTags = getAllTags();
   const [newTag, setNewTag] = useState("");
@@ -27,6 +37,10 @@ export default function PostForm() {
   useEffect(() => {
     if (!loaded) loadPosts();
   }, [loaded, loadPosts]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     if (isEdit && slug && loaded) {
@@ -37,10 +51,23 @@ export default function PostForm() {
         setExcerpt(post.excerpt);
         setContent(post.content);
         setTags(post.tags);
+        setCategory(post.category || "");
         setFeatured(post.featured || false);
       }
     }
   }, [isEdit, slug, loaded, getPostBySlug, posts]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/categories`);
+      const data = await res.json();
+      if (data.success && data.categories) {
+        setCategories(data.categories);
+      }
+    } catch (err) {
+      console.error("Fetch categories failed:", err);
+    }
+  };
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -60,7 +87,7 @@ export default function PostForm() {
     setSaveError("");
 
     try {
-      const postData = { title, date, excerpt, content, tags, featured };
+      const postData = { title, date, excerpt, content, tags, category, featured };
       let result;
       if (isEdit && slug) {
         result = await updatePost(slug, postData);
@@ -249,6 +276,34 @@ export default function PostForm() {
                   onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
                   onBlur={(e) => (e.currentTarget.style.borderColor = errors.date ? "#dc2626" : "var(--blog-border)")}
                 />
+              </div>
+
+              <div>
+                <label
+                  className="block blog-small font-medium mb-2"
+                  style={{ color: "var(--blog-foreground)" }}
+                >
+                  分类
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full rounded-md px-4 py-3 text-sm focus:outline-none transition-colors"
+                  style={{
+                    border: "1px solid var(--blog-border)",
+                    background: "var(--blog-background)",
+                    color: "var(--blog-foreground)",
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = "var(--blog-border)")}
+                >
+                  <option value="">选择分类（可选）</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.slug}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
