@@ -514,6 +514,19 @@ app.get("/api/reset-posts", (_req, res) => {
   res.json({ success: true, message: "文章已重置为默认数据", count: DEFAULT_POSTS.length });
 });
 
+// 重置管理员密码
+app.get("/api/reset-password", (_req, res) => {
+  const users = readUsers();
+  const adminIndex = users.findIndex(u => u.username === "admin");
+  if (adminIndex !== -1) {
+    users[adminIndex].password = "admin";
+    writeUsers(users);
+    res.json({ success: true, message: "管理员密码已重置为 admin" });
+  } else {
+    res.status(404).json({ success: false, message: "管理员用户不存在" });
+  }
+});
+
 // ── 站点设置接口 ──
 
 const SITE_SETTINGS_KEY = "site-settings";

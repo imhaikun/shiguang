@@ -359,6 +359,18 @@ export default {
       return jsonResponse({ success: true, message: "文章已重置为默认数据", count: DEFAULT_POSTS.length });
     }
 
+    // 重置管理员密码
+    if (path === "/api/reset-password" && method === "GET") {
+      const users = await readUsers(env.USERS_KV);
+      const adminIndex = users.findIndex(u => u.username === "admin");
+      if (adminIndex !== -1) {
+        users[adminIndex].password = "admin";
+        await env.USERS_KV.put(USERS_KEY, JSON.stringify(users));
+        return jsonResponse({ success: true, message: "管理员密码已重置为 admin" });
+      }
+      return jsonResponse({ success: false, message: "管理员用户不存在" }, 404);
+    }
+
     // 登录
     if (path === "/api/login" && method === "POST") {
       const { username, password } = await request.json();
