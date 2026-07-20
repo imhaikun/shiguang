@@ -24,6 +24,7 @@ export interface Env {
 const USERS_KEY = "users";
 const SITE_SETTINGS_KEY = "site_settings";
 const POSTS_KEY = "posts";
+const CATEGORIES_KEY = "categories";
 
 interface SiteSettings {
   title: string;
@@ -37,7 +38,17 @@ interface Post {
   excerpt: string;
   content: string;
   tags: string[];
+  category?: string;
   featured?: boolean;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 const DEFAULT_POSTS: Post[] = [
@@ -226,6 +237,26 @@ async function readPosts(kv: KVNamespace): Promise<Post[]> {
 
 async function writePosts(kv: KVNamespace, posts: Post[]): Promise<void> {
   await kv.put(POSTS_KEY, JSON.stringify(posts));
+}
+
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: "1", name: "教程系列", slug: "tutorial", description: "详细的技术教程", createdAt: Date.now(), updatedAt: Date.now() },
+  { id: "2", name: "踩坑实录", slug: "troubleshoot", description: "遇到的问题和解决方案", createdAt: Date.now(), updatedAt: Date.now() },
+  { id: "3", name: "工具推荐", slug: "tools", description: "好用的工具推荐", createdAt: Date.now(), updatedAt: Date.now() },
+  { id: "4", name: "折腾日记", slug: "diary", description: "日常折腾记录", createdAt: Date.now(), updatedAt: Date.now() },
+];
+
+async function readCategories(kv: KVNamespace): Promise<Category[]> {
+  const raw = await kv.get(CATEGORIES_KEY);
+  if (!raw) {
+    await kv.put(CATEGORIES_KEY, JSON.stringify(DEFAULT_CATEGORIES));
+    return DEFAULT_CATEGORIES;
+  }
+  return JSON.parse(raw);
+}
+
+async function writeCategories(kv: KVNamespace, categories: Category[]): Promise<void> {
+  await kv.put(CATEGORIES_KEY, JSON.stringify(categories));
 }
 
 function slugify(title: string): string {
@@ -693,12 +724,123 @@ export default {
       });
 
       if (changed) {
-        await writePosts(env.USERS_KV, posts);
-        return jsonResponse({ success: true, message: "标签已删除" });
-      }
-      return jsonResponse({ success: false, message: "标签不存在" }, 404);
+      await writePosts(env.USERS_KV, posts);
+      return jsonResponse({ success: true, message: "标签已删除" });
+    }
+    return jsonResponse({ success: false, message: "标签不存在" }, 404);
+  }
+
+  // 获取分类列表
+  if (path === "/api/categories" && method === "GET") {
+    const categories = await readCategories(env.USERS_KV);
+    const posts = await readPosts(env.USERS_KV);
+    
+    const categoriesWithCount = categories.map(cat => {
+      const count = posts.filter(p => p.category === cat.slug).length;
+      return { ...cat, count };
+    });
+    
+    return jsonResponse({ success: true, categories: categoriesWithCount });
+  }
+
+  // 创建分类
+  if (path === "/api/categories" && method === "POST") {
+    const { name, slug, description } = await request.json();
+    if (!name || !slug) {
+      return jsonResponse({ success: false, message: "分类名称和别名不能为空" }, 400);
     }
 
-    return jsonResponse({ success: false, message: "Not Found" }, 404);
+    const categories = await readCategories(env.USERS_KV);
+    if (categories.some(c => c.name === name)) {
+      return jsonResponse({ success: false, message: "分类名称已存在" }, 400);
+    }
+    if (categories.some(c => c.slug === slug)) {
+      return jsonResponse({ success: false, message: "分类别名已存在" }, 400);
+    }
+
+    const newCategory: Category = {
+      id: Math.random().toString(36).substring(2, 15),
+      name: name.trim(),
+      slug: slug.trim().toLowerCase(),
+      description: description ? description.trim() : "",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    categories.push(newCategory);
+    await writeCategories(env.USERS_KV, categories);
+    return jsonResponse({ success: true, category: newCategory });
+  }
+
+  // 更新分类
+  const categoryUpdateMatch = path.match(/^\/api\/categories\/([^/]+)$/);
+  if (categoryUpdateMatch && method === "PUT") {
+    const id = categoryUpdateMatch[1];
+    const { name, slug, description } = await request.json();
+
+    const categories = await readCategories(env.USERS_KV);
+    const index = categories.findIndex(c => c.id === id);
+    if (index === -1) {
+      return jsonResponse({ success: false, message: "分类不存在" }, 404);
+    }
+
+    if (name && categories.some(c => c.name === name && c.id !== id)) {
+      return jsonResponse({ success: false, message: "分类名称已存在" }, 400);
+    }
+    if (slug && categories.some(c => c.slug === slug && c.id !== id)) {
+      return jsonResponse({ success: false, message: "分类别名已存在" }, 400);
+    }
+
+    const oldSlug = categories[index].slug;
+    categories[index] = {
+      ...categories[index],
+      name: name ? name.trim() : categories[index].name,
+      slug: slug ? slug.trim().toLowerCase() : categories[index].slug,
+      description: description !== undefined ? description.trim() : categories[index].description,
+      updatedAt: Date.now(),
+    };
+
+    await writeCategories(env.USERS_KV, categories);
+
+    if (slug && slug.trim().toLowerCase() !== oldSlug) {
+      const posts = await readPosts(env.USERS_KV);
+      posts.forEach(post => {
+        if (post.category === oldSlug) {
+          post.category = slug.trim().toLowerCase();
+        }
+      });
+      await writePosts(env.USERS_KV, posts);
+    }
+
+    return jsonResponse({ success: true, category: categories[index] });
+  }
+
+  // 删除分类
+  const categoryDeleteMatch = path.match(/^\/api\/categories\/([^/]+)$/);
+  if (categoryDeleteMatch && method === "DELETE") {
+    const id = categoryDeleteMatch[1];
+
+    const categories = await readCategories(env.USERS_KV);
+    const index = categories.findIndex(c => c.id === id);
+    if (index === -1) {
+      return jsonResponse({ success: false, message: "分类不存在" }, 404);
+    }
+
+    const deletedCategory = categories[index];
+    categories.splice(index, 1);
+    await writeCategories(env.USERS_KV, categories);
+
+    const posts = await readPosts(env.USERS_KV);
+    posts.forEach(post => {
+      if (post.category === deletedCategory.slug) {
+        delete post.category;
+      }
+    });
+    await writePosts(env.USERS_KV, posts);
+
+    return jsonResponse({ success: true, message: "分类已删除" });
+  }
+
+  return jsonResponse({ success: false, message: "Not Found" }, 404);
   },
 };
