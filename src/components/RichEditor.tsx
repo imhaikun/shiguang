@@ -296,7 +296,7 @@ export default function RichEditor({
       }
     } else if (command === "formatBlock" && value === "pre") {
       const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
+      if (selection && selection.rangeCount > 0 && editorRef.current) {
         const range = selection.getRangeAt(0);
         const selectedText = range.toString();
         const pre = document.createElement("pre");
@@ -305,6 +305,16 @@ export default function RichEditor({
         pre.appendChild(code);
         range.deleteContents();
         range.insertNode(pre);
+        range.collapse(false);
+        const emptyP = document.createElement("p");
+        emptyP.innerHTML = "<br>";
+        range.insertNode(emptyP);
+        // Move cursor back into the code block for immediate editing
+        const newRange = document.createRange();
+        newRange.selectNodeContents(code);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
       }
     } else if (command === "formatBlock" && value) {
       document.execCommand(command, false, value);
@@ -363,6 +373,47 @@ export default function RichEditor({
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML);
     }
+  };
+
+  const handleRichKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Enter") return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const container = range.commonAncestorContainer;
+    const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : (container as HTMLElement);
+
+    if (!element) return;
+
+    const preElement = element.closest("pre");
+    const codeElement = element.closest("code");
+
+    if (!preElement && !codeElement) return;
+
+    e.preventDefault();
+
+    const targetPre = preElement || codeElement?.closest("pre");
+    if (!targetPre || !editorRef.current) return;
+
+    // Check if there's already a paragraph after the pre block
+    let nextSibling = targetPre.nextSibling;
+    if (!nextSibling || nextSibling.nodeName === "#text") {
+      const newP = document.createElement("p");
+      newP.innerHTML = "<br>";
+      targetPre.parentNode?.insertBefore(newP, targetPre.nextSibling);
+      nextSibling = newP;
+    }
+
+    // Move cursor to the paragraph after the code block
+    const newRange = document.createRange();
+    newRange.selectNodeContents(nextSibling as HTMLElement);
+    newRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+
+    onChange(editorRef.current.innerHTML);
   };
 
   const handleMarkdownChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -601,6 +652,7 @@ export default function RichEditor({
           ref={editorRef}
           contentEditable
           onInput={handleRichInput}
+          onKeyDown={handleRichKeyDown}
           className="prose-editorial min-h-[400px] p-4 focus:outline-none text-sm"
           style={{ background: "var(--blog-background)", color: "var(--blog-foreground)" }}
           data-placeholder={placeholder}
