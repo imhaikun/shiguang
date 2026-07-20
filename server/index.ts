@@ -1,6 +1,7 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import cors from "cors";
 import nodemailer from "nodemailer";
@@ -40,12 +41,17 @@ function writeDB(data: DB) {
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), "utf-8");
 }
 
-// 验证码内存缓存（生产环境建议用 Redis）
-const codeCache = new Map<string, { code: string; expireAt: number }>();
-const CODE_TTL_MS = 10 * 60 * 1000; // 10 分钟
+// 重置密码链接缓存（生产环境建议用 Redis）
+interface ResetToken {
+  token: string;
+  email: string;
+  expireAt: number;
+}
+const resetTokenCache = new Map<string, ResetToken>();
+const TOKEN_TTL_MS = 10 * 60 * 1000; // 10 分钟
 
-function generateCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+function generateToken(): string {
+  return crypto.randomBytes(32).toString("hex");
 }
 
 function getTransporter() {
@@ -133,8 +139,8 @@ app.put("/api/users/:id/password", (req, res) => {
   }
 });
 
-// 发送验证码
-app.post("/api/auth/forgot-password/send-code", async (req, res) => {
+// 发送重置密码链接
+app.post("/api/auth/forgot-password/send-link", async (req, res) => {
   const { email } = req.body;
   if (!email) {
     res.status(400).json({ success: false, message: "请输入邮箱地址" });
@@ -144,18 +150,18 @@ app.post("/api/auth/forgot-password/send-code", async (req, res) => {
   const db = readDB();
   const user = db.users.find(u => u.email === email);
   if (!user) {
-    // 不暴露邮箱是否存在
     res.status(400).json({ success: false, message: "该邮箱未绑定管理员账户" });
     return;
   }
 
   const transporter = getTransporter();
+  const token = generateToken();
+  const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:5174"}/admin/forgot-password/reset?token=${token}`;
 
-  const code = generateCode();
-  codeCache.set(email, { code, expireAt: Date.now() + CODE_TTL_MS });
+  resetTokenCache.set(token, { token, email, expireAt: Date.now() + TOKEN_TTL_MS });
 
   if (!transporter) {
-    res.json({ success: true, message: "验证码已生成", code });
+    res.json({ success: true, message: "重置链接已生成", link: resetUrl });
     return;
   }
 
@@ -163,27 +169,45 @@ app.post("/api/auth/forgot-password/send-code", async (req, res) => {
     await transporter.sendMail({
       from: `"那斯小棧" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: "那斯小棧 - 密码重置验证码",
+      subject: "那斯小棧 - 密码重置",
       html: `
         <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #10b981;">那斯小棧</h2>
-          <p>您正在进行密码重置操作，验证码如下：</p>
-          <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #10b981; margin: 24px 0;">${code}</div>
-          <p style="color: #666;">验证码 10 分钟内有效，请勿泄露给他人。</p>
+          <p>您正在进行密码重置操作，请点击下方链接设置新密码：</p>
+          <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0;">重置密码</a>
+          <p style="color: #666; font-size: 14px;">链接 10 分钟内有效，请勿泄露给他人。</p>
+          <p style="color: #999; font-size: 12px; margin-top: 20px;">如果您未申请重置密码，请忽略此邮件。</p>
         </div>
       `,
     });
-    res.json({ success: true, message: "验证码已发送，请查收邮件" });
+    res.json({ success: true, message: "重置链接已发送，请查收邮件" });
   } catch (err) {
     console.error("Send email failed:", err);
-    res.status(500).json({ success: false, message: "验证码发送失败，请检查邮件配置" });
+    res.json({ success: true, message: "重置链接已生成", link: resetUrl });
   }
+});
+
+// 验证重置链接
+app.get("/api/auth/forgot-password/verify-token", (req, res) => {
+  const { token } = req.query;
+  if (!token || typeof token !== "string") {
+    res.status(400).json({ success: false, message: "无效的重置链接" });
+    return;
+  }
+
+  const cached = resetTokenCache.get(token);
+  if (!cached || Date.now() > cached.expireAt) {
+    res.status(400).json({ success: false, message: "重置链接已过期或无效" });
+    return;
+  }
+
+  res.json({ success: true, email: cached.email });
 });
 
 // 重置密码
 app.post("/api/auth/forgot-password/reset", (req, res) => {
-  const { email, code, newPassword } = req.body;
-  if (!email || !code || !newPassword) {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
     res.status(400).json({ success: false, message: "参数不完整" });
     return;
   }
@@ -192,14 +216,14 @@ app.post("/api/auth/forgot-password/reset", (req, res) => {
     return;
   }
 
-  const cached = codeCache.get(email);
-  if (!cached || cached.code !== code || Date.now() > cached.expireAt) {
-    res.status(400).json({ success: false, message: "验证码错误或已过期" });
+  const cached = resetTokenCache.get(token);
+  if (!cached || Date.now() > cached.expireAt) {
+    res.status(400).json({ success: false, message: "重置链接已过期或无效" });
     return;
   }
 
   const db = readDB();
-  const index = db.users.findIndex(u => u.email === email);
+  const index = db.users.findIndex(u => u.email === cached.email);
   if (index === -1) {
     res.status(404).json({ success: false, message: "用户不存在" });
     return;
@@ -207,7 +231,7 @@ app.post("/api/auth/forgot-password/reset", (req, res) => {
 
   db.users[index].password = newPassword;
   writeDB(db);
-  codeCache.delete(email);
+  resetTokenCache.delete(token);
 
   res.json({ success: true, message: "密码重置成功，请使用新密码登录" });
 });
@@ -525,6 +549,68 @@ app.get("/api/reset-password", (_req, res) => {
     res.json({ success: true, message: "管理员密码已重置为 admin" });
   } else {
     res.status(404).json({ success: false, message: "管理员用户不存在" });
+  }
+});
+
+// ── 标签管理接口 ──
+
+app.get("/api/tags", (_req, res) => {
+  const posts = readPosts();
+  const tagMap = new Map<string, number>();
+  posts.forEach(post => {
+    post.tags.forEach(tag => {
+      tagMap.set(tag, (tagMap.get(tag) || 0) + 1);
+    });
+  });
+  const tags = Array.from(tagMap.entries()).map(([name, count]) => ({ name, count }));
+  res.json({ success: true, tags });
+});
+
+app.put("/api/tags", (req, res) => {
+  const { oldName, newName } = req.body;
+  if (!oldName || !newName) {
+    res.status(400).json({ success: false, message: "参数不完整" });
+    return;
+  }
+  if (oldName === newName) {
+    res.json({ success: true, message: "标签名称未变化" });
+    return;
+  }
+
+  const posts = readPosts();
+  let changed = false;
+  posts.forEach(post => {
+    if (post.tags.includes(oldName)) {
+      post.tags = post.tags.map(t => (t === oldName ? newName : t));
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    writePosts(posts);
+    res.json({ success: true, message: "标签名称已更新" });
+  } else {
+    res.status(404).json({ success: false, message: "标签不存在" });
+  }
+});
+
+app.delete("/api/tags/:name", (req, res) => {
+  const { name } = req.params;
+  const posts = readPosts();
+  let changed = false;
+  posts.forEach(post => {
+    const beforeLength = post.tags.length;
+    post.tags = post.tags.filter(t => t !== name);
+    if (post.tags.length !== beforeLength) {
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    writePosts(posts);
+    res.json({ success: true, message: "标签已删除" });
+  } else {
+    res.status(404).json({ success: false, message: "标签不存在" });
   }
 });
 

@@ -235,7 +235,13 @@ function slugify(title: string): string {
     .replace(/^-+|-+$/g, "")
     .substring(0, 80) || String(Date.now());
 }
-const CODE_TTL_SECONDS = 10 * 60; // 10 分钟
+const TOKEN_TTL_SECONDS = 10 * 60; // 10 分钟
+
+function generateToken(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 function jsonResponse(data: any, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -568,8 +574,8 @@ export default {
       return jsonResponse({ success: false, message: "用户不存在" }, 404);
     }
 
-    // 发送验证码
-    if (path === "/api/auth/forgot-password/send-code" && method === "POST") {
+    // 发送重置密码链接
+    if (path === "/api/auth/forgot-password/send-link" && method === "POST") {
       const { email } = await request.json();
       if (!email) {
         return jsonResponse({ success: false, message: "请输入邮箱地址" }, 400);
@@ -580,29 +586,44 @@ export default {
         return jsonResponse({ success: false, message: "该邮箱未绑定管理员账户" }, 400);
       }
 
-      const code = generateCode();
-      await env.USERS_KV.put(`code:${email}`, code, { expirationTtl: CODE_TTL_SECONDS });
+      const token = generateToken();
+      const resetUrl = `https://nas.202616.xyz/admin/forgot-password/reset?token=${token}`;
 
-      const sent = await sendEmail(env, email, code);
+      await env.USERS_KV.put(`token:${token}`, email, { expirationTtl: TOKEN_TTL_SECONDS });
+
+      const sent = await sendEmail(env, email, resetUrl);
       if (!sent) {
-        return jsonResponse({ success: true, message: "验证码已生成", code });
+        return jsonResponse({ success: true, message: "重置链接已生成", link: resetUrl });
       }
-      return jsonResponse({ success: true, message: "验证码已发送，请查收邮件" });
+      return jsonResponse({ success: true, message: "重置链接已发送，请查收邮件" });
+    }
+
+    // 验证重置链接
+    if (path === "/api/auth/forgot-password/verify-token" && method === "GET") {
+      const token = url.searchParams.get("token");
+      if (!token) {
+        return jsonResponse({ success: false, message: "无效的重置链接" }, 400);
+      }
+      const email = await env.USERS_KV.get(`token:${token}`);
+      if (!email) {
+        return jsonResponse({ success: false, message: "重置链接已过期或无效" }, 400);
+      }
+      return jsonResponse({ success: true, email });
     }
 
     // 重置密码
     if (path === "/api/auth/forgot-password/reset" && method === "POST") {
-      const { email, code, newPassword } = await request.json();
-      if (!email || !code || !newPassword) {
+      const { token, newPassword } = await request.json();
+      if (!token || !newPassword) {
         return jsonResponse({ success: false, message: "参数不完整" }, 400);
       }
       if (newPassword.length < 6) {
         return jsonResponse({ success: false, message: "新密码长度至少为 6 位" }, 400);
       }
 
-      const cachedCode = await env.USERS_KV.get(`code:${email}`);
-      if (!cachedCode || cachedCode !== code) {
-        return jsonResponse({ success: false, message: "验证码错误或已过期" }, 400);
+      const email = await env.USERS_KV.get(`token:${token}`);
+      if (!email) {
+        return jsonResponse({ success: false, message: "重置链接已过期或无效" }, 400);
       }
 
       const users = await readUsers(env.USERS_KV);
@@ -613,9 +634,69 @@ export default {
 
       users[index].password = newPassword;
       await writeUsers(env.USERS_KV, users);
-      await env.USERS_KV.delete(`code:${email}`);
+      await env.USERS_KV.delete(`token:${token}`);
 
       return jsonResponse({ success: true, message: "密码重置成功，请使用新密码登录" });
+    }
+
+    // 获取标签列表
+    if (path === "/api/tags" && method === "GET") {
+      const posts = await readPosts(env.USERS_KV);
+      const tagMap = new Map<string, number>();
+      posts.forEach(post => {
+        post.tags.forEach(tag => {
+          tagMap.set(tag, (tagMap.get(tag) || 0) + 1);
+        });
+      });
+      const tags = Array.from(tagMap.entries()).map(([name, count]) => ({ name, count }));
+      return jsonResponse({ success: true, tags });
+    }
+
+    // 修改标签名称
+    if (path === "/api/tags" && method === "PUT") {
+      const { oldName, newName } = await request.json();
+      if (!oldName || !newName) {
+        return jsonResponse({ success: false, message: "参数不完整" }, 400);
+      }
+      if (oldName === newName) {
+        return jsonResponse({ success: true, message: "标签名称未变化" });
+      }
+
+      const posts = await readPosts(env.USERS_KV);
+      let changed = false;
+      posts.forEach(post => {
+        if (post.tags.includes(oldName)) {
+          post.tags = post.tags.map(t => (t === oldName ? newName : t));
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        await writePosts(env.USERS_KV, posts);
+        return jsonResponse({ success: true, message: "标签名称已更新" });
+      }
+      return jsonResponse({ success: false, message: "标签不存在" }, 404);
+    }
+
+    // 删除标签
+    const tagDeleteMatch = path.match(/^\/api\/tags\/([^/]+)$/);
+    if (tagDeleteMatch && method === "DELETE") {
+      const name = decodeURIComponent(tagDeleteMatch[1]);
+      const posts = await readPosts(env.USERS_KV);
+      let changed = false;
+      posts.forEach(post => {
+        const beforeLength = post.tags.length;
+        post.tags = post.tags.filter(t => t !== name);
+        if (post.tags.length !== beforeLength) {
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        await writePosts(env.USERS_KV, posts);
+        return jsonResponse({ success: true, message: "标签已删除" });
+      }
+      return jsonResponse({ success: false, message: "标签不存在" }, 404);
     }
 
     return jsonResponse({ success: false, message: "Not Found" }, 404);

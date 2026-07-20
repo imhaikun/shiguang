@@ -14,6 +14,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import Dashboard from "@/pages/Dashboard";
 import PostList from "@/pages/PostList";
 import PostForm from "@/pages/PostForm";
+import Tags from "@/pages/Tags";
 import Settings from "@/pages/Settings";
 
 export default function App() {
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="posts" element={<PostList />} />
           <Route path="posts/new" element={<PostForm />} />
           <Route path="posts/edit/:slug" element={<PostForm />} />
+          <Route path="tags" element={<Tags />} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>

@@ -1,22 +1,51 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Mail, Lock, KeyRound, ArrowLeft, AlertCircle, Check, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { Mail, Lock, ArrowLeft, AlertCircle, Check, Loader2, Copy, ExternalLink } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2>(token ? 2 : 1);
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [emailDisplay, setEmailDisplay] = useState("");
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [resetLink, setResetLink] = useState("");
+
+  useEffect(() => {
+    if (token) {
+      verifyToken(token);
+    }
+  }, [token]);
+
+  const verifyToken = async (token: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password/verify-token?token=${token}`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEmailDisplay(data.email);
+        setStep(2);
+      } else {
+        setError(data.message || "重置链接已过期或无效");
+        setStep(1);
+      }
+    } catch {
+      setError("验证链接失败，请重新获取");
+      setStep(1);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const showError = (msg: string) => {
     setError(msg);
@@ -41,10 +70,18 @@ export default function ForgotPassword() {
     }, 1000);
   };
 
-  const handleSendCode = async (e?: React.FormEvent) => {
+  const copyLink = async () => {
+    if (resetLink) {
+      await navigator.clipboard.writeText(resetLink);
+      showSuccess("链接已复制到剪贴板");
+    }
+  };
+
+  const handleSendLink = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError("");
     setSuccess("");
+    setResetLink("");
 
     if (!email.trim()) {
       showError("请输入邮箱地址");
@@ -57,7 +94,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const res = await fetch(API_BASE + "/api/auth/forgot-password/send-code", {
+      const res = await fetch(API_BASE + "/api/auth/forgot-password/send-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -66,7 +103,10 @@ export default function ForgotPassword() {
       if (!res.ok || !data.success) {
         throw new Error(data.message || "发送失败");
       }
-      showSuccess(data.code ? `验证码：${data.code}` : "验证码已发送，请查收邮件");
+      showSuccess(data.message);
+      if (data.link) {
+        setResetLink(data.link);
+      }
       startCountdown();
     } catch (err) {
       showError(err instanceof Error ? err.message : "发送失败");
@@ -79,10 +119,6 @@ export default function ForgotPassword() {
     e.preventDefault();
     setError("");
 
-    if (!code.trim()) {
-      showError("请输入验证码");
-      return;
-    }
     if (!newPassword) {
       showError("请输入新密码");
       return;
@@ -101,7 +137,7 @@ export default function ForgotPassword() {
       const res = await fetch(API_BASE + "/api/auth/forgot-password/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), code: code.trim(), newPassword }),
+        body: JSON.stringify({ token, newPassword }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -150,10 +186,13 @@ export default function ForgotPassword() {
             </svg>
           </div>
           <h1 className="blog-h2 mb-2" style={{ fontSize: "1.5rem" }}>
-            忘记密码
+            {step === 1 ? "忘记密码" : "重置密码"}
           </h1>
           <p className="blog-small" style={{ color: "var(--blog-muted)" }}>
-            {step === 1 ? "输入管理员邮箱获取验证码" : "输入验证码并设置新密码"}
+            {step === 1 
+              ? "输入管理员邮箱获取重置密码链接" 
+              : `将为 ${emailDisplay} 设置新密码`
+            }
           </p>
         </div>
 
@@ -187,8 +226,41 @@ export default function ForgotPassword() {
           </div>
         )}
 
+        {resetLink && (
+          <div
+            className="mb-4 p-4 rounded-md"
+            style={{
+              background: "rgba(59,130,246,0.08)",
+              border: "1px solid rgba(59,130,246,0.2)",
+            }}
+          >
+            <p className="blog-small mb-2" style={{ color: "var(--blog-muted)" }}>重置密码链接：</p>
+            <div className="flex items-center gap-2">
+              <span className="flex-1 text-xs truncate" style={{ color: "#3b82f6" }}>
+                {resetLink}
+              </span>
+              <button
+                onClick={copyLink}
+                className="p-1.5 rounded hover:bg-blue-100 transition-colors"
+                title="复制链接"
+              >
+                <Copy className="h-4 w-4" style={{ color: "#3b82f6" }} />
+              </button>
+              <a
+                href={resetLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 rounded hover:bg-blue-100 transition-colors"
+                title="在新窗口打开"
+              >
+                <ExternalLink className="h-4 w-4" style={{ color: "#3b82f6" }} />
+              </a>
+            </div>
+          </div>
+        )}
+
         {step === 1 ? (
-          <form onSubmit={handleSendCode} className="space-y-4">
+          <form onSubmit={handleSendLink} className="space-y-4">
             <div>
               <label className="block blog-small font-medium mb-2" style={{ color: "var(--blog-foreground)" }}>
                 邮箱地址
@@ -225,113 +297,80 @@ export default function ForgotPassword() {
               ) : countdown > 0 ? (
                 `${countdown} 秒后重试`
               ) : (
-                "获取验证码"
+                "获取重置密码链接"
               )}
             </button>
-
-            {code && (
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="w-full py-3 rounded-md text-sm font-medium transition-opacity hover:opacity-90"
-                style={{ background: "rgba(16,185,129,0.08)", color: "var(--blog-primary)" }}
-              >
-                我已收到验证码
-              </button>
-            )}
           </form>
         ) : (
           <form onSubmit={handleReset} className="space-y-4">
-            <div>
-              <label className="block blog-small font-medium mb-2" style={{ color: "var(--blog-foreground)" }}>
-                验证码
-              </label>
-              <div className="relative">
-                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--blog-muted)" }} />
-                <input
-                  type="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="6 位验证码"
-                  maxLength={6}
-                  className="w-full rounded-md px-4 py-3 pl-10 text-sm focus:outline-none transition-colors"
-                  style={{
-                    border: "1px solid var(--blog-border)",
-                    background: "var(--blog-background)",
-                    color: "var(--blog-foreground)",
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "var(--blog-border)")}
-                />
+            {loading && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--blog-primary)" }} />
               </div>
-            </div>
-            <div>
-              <label className="block blog-small font-medium mb-2" style={{ color: "var(--blog-foreground)" }}>
-                新密码
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--blog-muted)" }} />
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="至少 6 位"
-                  className="w-full rounded-md px-4 py-3 pl-10 text-sm focus:outline-none transition-colors"
-                  style={{
-                    border: "1px solid var(--blog-border)",
-                    background: "var(--blog-background)",
-                    color: "var(--blog-foreground)",
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "var(--blog-border)")}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block blog-small font-medium mb-2" style={{ color: "var(--blog-foreground)" }}>
-                确认新密码
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--blog-muted)" }} />
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="再次输入新密码"
-                  className="w-full rounded-md px-4 py-3 pl-10 text-sm focus:outline-none transition-colors"
-                  style={{
-                    border: "1px solid var(--blog-border)",
-                    background: "var(--blog-background)",
-                    color: "var(--blog-foreground)",
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "var(--blog-border)")}
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 rounded-md text-sm font-medium text-white transition-opacity disabled:opacity-70"
-              style={{ background: "var(--blog-primary)" }}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  重置中...
-                </span>
-              ) : (
-                "重置密码"
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="w-full py-3 rounded-md text-sm font-medium transition-colors"
-              style={{ color: "var(--blog-muted-foreground)" }}
-            >
-              返回上一步
-            </button>
+            )}
+            {!loading && (
+              <>
+                <div>
+                  <label className="block blog-small font-medium mb-2" style={{ color: "var(--blog-foreground)" }}>
+                    新密码
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--blog-muted)" }} />
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="至少 6 位"
+                      className="w-full rounded-md px-4 py-3 pl-10 text-sm focus:outline-none transition-colors"
+                      style={{
+                        border: "1px solid var(--blog-border)",
+                        background: "var(--blog-background)",
+                        color: "var(--blog-foreground)",
+                      }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "var(--blog-border)")}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block blog-small font-medium mb-2" style={{ color: "var(--blog-foreground)" }}>
+                    确认新密码
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--blog-muted)" }} />
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="再次输入新密码"
+                      className="w-full rounded-md px-4 py-3 pl-10 text-sm focus:outline-none transition-colors"
+                      style={{
+                        border: "1px solid var(--blog-border)",
+                        background: "var(--blog-background)",
+                        color: "var(--blog-foreground)",
+                      }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "var(--blog-border)")}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 rounded-md text-sm font-medium text-white transition-opacity disabled:opacity-70"
+                  style={{ background: "var(--blog-primary)" }}
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      重置中...
+                    </span>
+                  ) : (
+                    "重置密码"
+                  )}
+                </button>
+              </>
+            )}
           </form>
         )}
 
