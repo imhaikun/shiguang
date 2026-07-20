@@ -30,42 +30,138 @@ function getApiBase(): string {
 const API_BASE = /* @__NOINLINE */ getApiBase();
 
 function parseMarkdown(text: string): string {
-  let html = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  if (!text) return "<p></p>";
 
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    const language = lang || "plaintext";
-    const highlighted = hljs.highlight(code.trim(), { language }).value;
-    return `<pre class="hljs" style="white-space: pre-wrap; word-break: break-word; overflow-x: auto;"><code class="language-${language}">${highlighted}</code></pre>`;
+  const lines = text.split("\n");
+  const html: string[] = [];
+  let currentParagraph: string[] = [];
+
+  const flushParagraph = () => {
+    if (currentParagraph.length > 0) {
+      const paragraphText = currentParagraph.join(" ");
+      let processed = paragraphText
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g, "<em>$1</em>")
+        .replace(/~~(.*?)~~/g, "<del>$1</del>")
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      html.push(`<p>${processed}</p>`);
+      currentParagraph = [];
+    }
+  };
+
+  let inCodeBlock = false;
+  let codeLang = "";
+  let codeContent: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith("```")) {
+      if (inCodeBlock) {
+        const language = codeLang || "plaintext";
+        html.push(`<pre><code data-language="${language}">${codeContent.join("\n")}</code></pre>`);
+        inCodeBlock = false;
+        codeLang = "";
+        codeContent = [];
+      } else {
+        flushParagraph();
+        inCodeBlock = true;
+        codeLang = line.substring(3).trim();
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeContent.push(line);
+      continue;
+    }
+
+    if (line.startsWith("# ")) {
+      flushParagraph();
+      html.push(`<h1>${line.substring(2)}</h1>`);
+    } else if (line.startsWith("## ")) {
+      flushParagraph();
+      html.push(`<h2>${line.substring(3)}</h2>`);
+    } else if (line.startsWith("### ")) {
+      flushParagraph();
+      html.push(`<h3>${line.substring(4)}</h3>`);
+    } else if (line.startsWith("> ")) {
+      flushParagraph();
+      html.push(`<blockquote>${line.substring(2)}</blockquote>`);
+    } else if (line.startsWith("- ") || line.startsWith("* ")) {
+      flushParagraph();
+      html.push(`<ul><li>${line.substring(2)}</li></ul>`);
+    } else if (/^\d+\. /.test(line)) {
+      flushParagraph();
+      const match = line.match(/^\d+\. (.*)$/);
+      if (match) {
+        html.push(`<ol><li>${match[1]}</li></ol>`);
+      }
+    } else if (line.trim() === "") {
+      flushParagraph();
+    } else {
+      currentParagraph.push(line);
+    }
+  }
+
+  flushParagraph();
+
+  return html.join("");
+}
+
+function htmlToMarkdown(html: string): string {
+  let md = html;
+
+  md = md.replace(/<pre><code data-language="([^"]*)">([\s\S]*?)<\/code><\/pre>/g, (_, lang, code) => {
+    return "```" + (lang || "") + "\n" + code.trim() + "\n```";
+  });
+  md = md.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (_, code) => {
+    return "```\n" + code.trim() + "\n```";
   });
 
-  html = html.replace(/`([^`]+)`/g, "<code class=\"inline-code\">$1</code>");
+  md = md.replace(/<code[^>]*>(.*?)<\/code>/g, "`$1`");
 
-  html = html.replace(/^### (.*$)/gim, "<h3>$1</h3>");
-  html = html.replace(/^## (.*$)/gim, "<h2>$1</h2>");
-  html = html.replace(/^# (.*$)/gim, "<h1>$1</h1>");
+  md = md.replace(/<h1[^>]*>(.*?)<\/h1>/g, "# $1");
+  md = md.replace(/<h2[^>]*>(.*?)<\/h2>/g, "## $1");
+  md = md.replace(/<h3[^>]*>(.*?)<\/h3>/g, "### $1");
 
-  html = html.replace(/\*\*(.*)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.*)\*/g, "<em>$1</em>");
-  html = html.replace(/~~(.*)~~/g, "<del>$1</del>");
+  md = md.replace(/<strong[^>]*>(.*?)<\/strong>/g, "**$1**");
+  md = md.replace(/<b[^>]*>(.*?)<\/b>/g, "**$1**");
+  md = md.replace(/<em[^>]*>(.*?)<\/em>/g, "*$1*");
+  md = md.replace(/<i[^>]*>(.*?)<\/i>/g, "*$1*");
+  md = md.replace(/<del[^>]*>(.*?)<\/del>/g, "~~$1~~");
+  md = md.replace(/<s[^>]*>(.*?)<\/s>/g, "~~$1~~");
+  md = md.replace(/<strike[^>]*>(.*?)<\/strike>/g, "~~$1~~");
 
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  md = md.replace(/<a[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/g, "[$2]($1)");
 
-  html = html.replace(/^&gt; (.*$)/gim, "<blockquote>$1</blockquote>");
+  md = md.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/g, "> $1");
 
-  html = html.replace(/^(\d+)\. (.*$)/gim, "<li>$2</li>");
-  html = html.replace(/(<li>[\s\S]*?<\/li>)/g, "<ol>$1</ol>");
+  md = md.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/g, (match, content) => {
+    return content.replace(/<li[^>]*>(.*?)<\/li>/g, "- $1");
+  });
+  md = md.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/g, (match, content) => {
+    let i = 1;
+    return content.replace(/<li[^>]*>(.*?)<\/li>/g, () => `${i++}. ` + "$1");
+  });
 
-  html = html.replace(/^- (.*$)/gim, "<li>$1</li>");
-  html = html.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
+  md = md.replace(/<p[^>]*>([\s\S]*?)<\/p>/g, "$1\n");
 
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
+  md = md.replace(/<br\s*\/?>/g, "\n");
+  md = md.replace(/<br>/g, "\n");
 
-  html = html.replace(/\n/g, "<br />");
+  md = md.replace(/&amp;/g, "&");
+  md = md.replace(/&lt;/g, "<");
+  md = md.replace(/&gt;/g, ">");
+  md = md.replace(/&nbsp;/g, " ");
+  md = md.replace(/&quot;/g, '"');
+  md = md.replace(/&#39;/g, "'");
 
-  return html;
+  md = md.replace(/^\n+/g, "");
+  md = md.replace(/\n+$/g, "");
+
+  return md;
 }
 
 interface RichEditorProps {
@@ -143,8 +239,13 @@ export default function RichEditor({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (showCodeDropdown && !target.closest('[title="代码块"]')) {
-        setShowCodeDropdown(false);
+      if (showCodeDropdown) {
+        const isInsideEditor = target.closest('[contenteditable="true"]');
+        const isCodeBlockButton = target.closest('[title="代码块"]');
+        const isDropdownItem = target.closest('.code-language-dropdown');
+        if (!isInsideEditor && !isCodeBlockButton && !isDropdownItem) {
+          setShowCodeDropdown(false);
+        }
       }
     };
     document.addEventListener("click", handleClickOutside);
@@ -152,6 +253,21 @@ export default function RichEditor({
   }, [showCodeDropdown]);
 
   const handleModeToggle = (newMode: "rich" | "markdown") => {
+    if (newMode === mode) return;
+    let newValue = value;
+    if (newMode === "rich") {
+      newValue = parseMarkdown(value);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = newValue || "<p></p>";
+      }
+    } else {
+      if (editorRef.current) {
+        newValue = htmlToMarkdown(editorRef.current.innerHTML);
+      } else {
+        newValue = htmlToMarkdown(value);
+      }
+    }
+    onChange(newValue);
     setMode(newMode);
     onModeChange?.(newMode);
   };
@@ -309,7 +425,18 @@ export default function RichEditor({
         pre.appendChild(code);
         range.deleteContents();
         range.insertNode(pre);
+        range.collapse(false);
+        const emptyP = document.createElement("p");
+        emptyP.innerHTML = "&nbsp;";
+        range.insertNode(emptyP);
         onChange(editorRef.current.innerHTML);
+        setTimeout(() => {
+          const newRange = document.createRange();
+          newRange.selectNodeContents(code);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }, 0);
       }
       setShowCodeDropdown(false);
     }
@@ -387,7 +514,7 @@ export default function RichEditor({
                   </button>
                   {showCodeDropdown && (
                     <div
-                      className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-50 min-w-[150px]"
+                      className="code-language-dropdown absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-50 min-w-[150px]"
                       style={{ borderColor: "var(--blog-border)" }}
                     >
                       {codeLanguages.map((lang) => (

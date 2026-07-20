@@ -179,9 +179,14 @@
   border: 1px solid var(--blog-border);
   border-radius: 8px;
   padding: 1em 1.25em;
+  margin-bottom: 1em;
   overflow-x: auto;
+  overflow-y: visible;
   white-space: pre-wrap;
   word-break: break-word;
+  cursor: text;
+  display: block;
+  max-width: 100%;
 }
 .prose-editorial pre code {
   background: transparent;
