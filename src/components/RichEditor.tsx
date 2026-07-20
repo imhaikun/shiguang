@@ -4,6 +4,7 @@ import {
   Italic,
   Strikethrough,
   Code,
+  Code2,
   Link,
   Heading2,
   Quote,
@@ -86,7 +87,7 @@ const basicButtons: ToolbarButton[] = [
   { icon: Bold, command: "bold", title: "加粗" },
   { icon: Italic, command: "italic", title: "斜体" },
   { icon: Strikethrough, command: "strikeThrough", title: "删除线" },
-  { icon: Code, command: "inlineCode", title: "行内代码" },
+  { icon: Code2, command: "inlineCode", title: "行内代码" },
   { icon: Code, command: "formatBlock", value: "pre", title: "代码块" },
   { icon: Link, command: "createLink", title: "插入链接" },
   { icon: Heading2, command: "formatBlock", value: "h2", title: "标题" },
@@ -166,6 +167,8 @@ export default function RichEditor({
       if (url) {
         document.execCommand(command, false, url);
       }
+    } else if (command === "inlineCode") {
+      document.execCommand("formatBlock", false, "code");
     } else if (command === "formatBlock" && value) {
       document.execCommand(command, false, value);
     } else {
