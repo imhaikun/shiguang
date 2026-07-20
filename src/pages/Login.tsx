@@ -1,15 +1,87 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Lock, Mail, AlertCircle, Loader2 } from "lucide-react";
+import { Lock, Mail, AlertCircle, Loader2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+
+// 生成随机验证码
+function generateCaptcha(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "";
+  for (let i = 0; i < 4; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaInput, setCaptchaInput] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaCode, setCaptchaCode] = useState(generateCaptcha);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // 绘制验证码到 Canvas
+  const drawCaptcha = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // 清空背景
+    ctx.fillStyle = "#f5f5f5";
+    ctx.fillRect(0, 0, w, h);
+
+    // 绘制干扰线
+    for (let i = 0; i < 4; i++) {
+      ctx.strokeStyle = `rgba(${Math.random() * 150}, ${Math.random() * 150}, ${Math.random() * 150}, 0.5)`;
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * w, Math.random() * h);
+      ctx.lineTo(Math.random() * w, Math.random() * h);
+      ctx.stroke();
+    }
+
+    // 绘制干扰点
+    for (let i = 0; i < 20; i++) {
+      ctx.fillStyle = `rgba(${Math.random() * 150}, ${Math.random() * 150}, ${Math.random() * 150}, 0.6)`;
+      ctx.beginPath();
+      ctx.arc(Math.random() * w, Math.random() * h, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 绘制验证码字符
+    const colors = ["#1e293b", "#10b981", "#dc2626", "#2563eb", "#7c3aed", "#db2777"];
+    const chars = captchaCode.split("");
+    const charWidth = w / (chars.length + 1);
+    chars.forEach((char, i) => {
+      ctx.save();
+      ctx.font = `bold ${24 + Math.random() * 6}px "Inter", "Noto Sans SC", sans-serif`;
+      ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const x = charWidth * (i + 1);
+      const y = h / 2 + (Math.random() - 0.5) * 8;
+      ctx.translate(x, y);
+      ctx.rotate((Math.random() - 0.5) * 0.5);
+      ctx.fillText(char, 0, 0);
+      ctx.restore();
+    });
+  }, [captchaCode]);
+
+  useEffect(() => {
+    drawCaptcha();
+  }, [drawCaptcha]);
+
+  const refreshCaptcha = () => {
+    setCaptchaCode(generateCaptcha());
+    setCaptchaInput("");
+  };
 
   if (isAuthenticated) {
     navigate("/admin");
@@ -19,6 +91,14 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // 校验验证码（不区分大小写）
+    if (captchaInput.toUpperCase() !== captchaCode.toUpperCase()) {
+      setError("验证码错误，请重新输入");
+      refreshCaptcha();
+      return;
+    }
+
     setLoading(true);
 
     const success = await login(username, password);
@@ -28,6 +108,7 @@ export default function Login() {
       navigate("/admin");
     } else {
       setError("用户名或密码错误，请使用 admin/admin");
+      refreshCaptcha();
     }
   };
 
@@ -145,6 +226,50 @@ export default function Login() {
                 }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
                 onBlur={(e) => (e.currentTarget.style.borderColor = "var(--blog-border)")}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              className="block blog-small font-medium mb-2"
+              style={{ color: "var(--blog-foreground)" }}
+            >
+              验证码
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <ShieldCheck
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                  style={{ color: "var(--blog-muted)" }}
+                />
+                <input
+                  type="text"
+                  value={captchaInput}
+                  onChange={(e) => setCaptchaInput(e.target.value)}
+                  placeholder="请输入验证码"
+                  maxLength={4}
+                  className="w-full rounded-md px-4 py-3 pl-10 text-sm focus:outline-none transition-colors uppercase"
+                  style={{
+                    border: "1px solid var(--blog-border)",
+                    background: "var(--blog-background)",
+                    color: "var(--blog-foreground)",
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "var(--blog-ring)")}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = "var(--blog-border)")}
+                />
+              </div>
+              <canvas
+                ref={canvasRef}
+                width={120}
+                height={48}
+                onClick={refreshCaptcha}
+                title="点击刷新验证码"
+                className="rounded-md cursor-pointer flex-shrink-0"
+                style={{
+                  border: "1px solid var(--blog-border)",
+                  background: "#f5f5f5",
+                }}
               />
             </div>
           </div>
