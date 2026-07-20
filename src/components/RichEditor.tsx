@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   Bold,
   Italic,
@@ -18,6 +18,8 @@ import {
   Redo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import hljs from "highlight.js";
+import "highlight.js/styles/github-dark.css";
 
 function getApiBase(): string {
   if (import.meta.env.DEV) return "";
@@ -25,6 +27,45 @@ function getApiBase(): string {
 }
 
 const API_BASE = /* @__NOINLINE */ getApiBase();
+
+function parseMarkdown(text: string): string {
+  let html = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const language = lang || "plaintext";
+    const highlighted = hljs.highlight(code.trim(), { language }).value;
+    return `<pre class="hljs"><code class="language-${language}">${highlighted}</code></pre>`;
+  });
+
+  html = html.replace(/`([^`]+)`/g, "<code class=\"inline-code\">$1</code>");
+
+  html = html.replace(/^### (.*$)/gim, "<h3>$1</h3>");
+  html = html.replace(/^## (.*$)/gim, "<h2>$1</h2>");
+  html = html.replace(/^# (.*$)/gim, "<h1>$1</h1>");
+
+  html = html.replace(/\*\*(.*)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*(.*)\*/g, "<em>$1</em>");
+  html = html.replace(/~~(.*)~~/g, "<del>$1</del>");
+
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+  html = html.replace(/^&gt; (.*$)/gim, "<blockquote>$1</blockquote>");
+
+  html = html.replace(/^(\d+)\. (.*$)/gim, "<li>$2</li>");
+  html = html.replace(/(<li>[\s\S]*?<\/li>)/g, "<ol>$1</ol>");
+
+  html = html.replace(/^- (.*$)/gim, "<li>$1</li>");
+  html = html.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
+
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
+
+  html = html.replace(/\n/g, "<br />");
+
+  return html;
+}
 
 interface RichEditorProps {
   value: string;
@@ -298,17 +339,25 @@ export default function RichEditor({
           suppressContentEditableWarning
         />
       ) : (
-        <textarea
-          value={value}
-          onChange={handleMarkdownChange}
-          placeholder={placeholder}
-          className="w-full min-h-[400px] p-4 text-sm font-mono focus:outline-none resize-y"
-          style={{
-            background: "var(--blog-background)",
-            color: "var(--blog-foreground)",
-            lineHeight: "1.6",
-          }}
-        />
+        <div className="flex min-h-[400px]">
+          <textarea
+            value={value}
+            onChange={handleMarkdownChange}
+            placeholder={placeholder}
+            className="w-1/2 min-h-[400px] p-4 text-sm font-mono focus:outline-none resize-none border-r"
+            style={{
+              background: "var(--blog-background)",
+              color: "var(--blog-foreground)",
+              lineHeight: "1.6",
+              borderColor: "var(--blog-border)",
+            }}
+          />
+          <div
+            className="w-1/2 min-h-[400px] p-4 overflow-auto bg-gray-900"
+            dangerouslySetInnerHTML={{ __html: parseMarkdown(value) }}
+            style={{ color: "var(--blog-foreground)" }}
+          />
+        </div>
       )}
 
       {uploading && (
