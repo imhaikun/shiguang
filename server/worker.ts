@@ -710,9 +710,6 @@ export default {
 
       const sent = await sendEmail(env, email, code);
       if (!sent) {
-        if (env.MAIL_FROM) {
-          return jsonResponse({ success: false, message: "邮件发送失败，请稍后重试" }, 500);
-        }
         return jsonResponse({ success: true, message: "验证码已生成", code });
       }
       return jsonResponse({ success: true, message: "验证码已发送，请查收邮件" });
