@@ -122,6 +122,7 @@ export default function RichEditor({
 }: RichEditorProps) {
   const [mode, setMode] = useState<"rich" | "markdown">(externalMode || "rich");
   const editorRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [showCodeDropdown, setShowCodeDropdown] = useState(false);
@@ -233,12 +234,11 @@ export default function RichEditor({
   };
 
   const insertMarkdownFormat = (prefix: string, suffix = "") => {
-    const textarea = document.createElement("textarea");
-    const activeEl = document.activeElement;
-    if (!(activeEl instanceof HTMLTextAreaElement)) return;
+    const textarea = textareaRef.current;
+    if (!textarea) return;
 
-    const start = activeEl.selectionStart;
-    const end = activeEl.selectionEnd;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
     const selectedText = value.substring(start, end);
     const before = value.substring(0, start);
     const after = value.substring(end);
@@ -247,18 +247,18 @@ export default function RichEditor({
     onChange(newText);
 
     setTimeout(() => {
-      activeEl.focus();
-      activeEl.selectionStart = start + prefix.length;
-      activeEl.selectionEnd = end + prefix.length;
+      textarea.focus();
+      textarea.selectionStart = start + prefix.length;
+      textarea.selectionEnd = end + prefix.length;
     }, 0);
   };
 
   const insertCodeBlock = (language: string) => {
-    const activeEl = document.activeElement;
-    if (!(activeEl instanceof HTMLTextAreaElement)) return;
+    const textarea = textareaRef.current;
+    if (!textarea) return;
 
-    const start = activeEl.selectionStart;
-    const end = activeEl.selectionEnd;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
     const selectedText = value.substring(start, end);
     const before = value.substring(0, start);
     const after = value.substring(end);
@@ -270,10 +270,10 @@ export default function RichEditor({
     setShowCodeDropdown(false);
 
     setTimeout(() => {
-      activeEl.focus();
+      textarea.focus();
       const codeStart = start + 4 + language.length + 1;
-      activeEl.selectionStart = codeStart;
-      activeEl.selectionEnd = codeStart + (selectedText.length || 14);
+      textarea.selectionStart = codeStart;
+      textarea.selectionEnd = codeStart + (selectedText.length || 14);
     }, 0);
   };
 
@@ -436,6 +436,7 @@ export default function RichEditor({
       ) : (
         <div className="flex min-h-[400px]">
           <textarea
+            ref={textareaRef}
             value={value}
             onChange={handleMarkdownChange}
             placeholder={placeholder}
