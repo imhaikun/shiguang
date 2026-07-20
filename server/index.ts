@@ -245,7 +245,9 @@ interface Post {
   excerpt: string;
   content: string;
   tags: string[];
+  category?: string;
   featured?: boolean;
+  status?: "draft" | "published";
 }
 
 const DEFAULT_POSTS: Post[] = [
@@ -472,6 +474,13 @@ function slugify(title: string): string {
 
 app.get("/api/posts", (_req, res) => {
   const posts = readPosts();
+  // 只返回已发布的文章（草稿不显示在公开列表）
+  const published = posts.filter(p => p.status !== "draft");
+  res.json({ success: true, posts: published });
+});
+
+app.get("/api/posts/all", (_req, res) => {
+  const posts = readPosts();
   res.json({ success: true, posts });
 });
 
@@ -479,15 +488,21 @@ app.get("/api/posts/:slug", (req, res) => {
   const { slug } = req.params;
   const posts = readPosts();
   const post = posts.find(p => p.slug === slug);
-  if (post) {
-    res.json({ success: true, post });
-  } else {
+  if (!post) {
     res.status(404).json({ success: false, message: "文章不存在" });
+    return;
   }
+  // 草稿文章仅在管理后台请求时返回
+  const isAdmin = req.headers["x-admin-request"] === "true";
+  if (post.status === "draft" && !isAdmin) {
+    res.status(404).json({ success: false, message: "文章不存在" });
+    return;
+  }
+  res.json({ success: true, post });
 });
 
 app.post("/api/posts", (req, res) => {
-  const { title, date, excerpt, content, tags, featured } = req.body;
+  const { title, date, excerpt, content, tags, featured, category, status } = req.body;
   if (!title || !content) {
     res.status(400).json({ success: false, message: "标题和内容不能为空" });
     return;
@@ -502,6 +517,8 @@ app.post("/api/posts", (req, res) => {
     content,
     tags: (tags || []).map((t: string) => t.trim()).filter((t: string) => t),
     featured: featured || false,
+    category: category || undefined,
+    status: status === "published" ? "published" : "draft",
   };
   posts.unshift(newPost);
   writePosts(posts);

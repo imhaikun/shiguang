@@ -12,6 +12,7 @@ interface UsePostsState {
   posts: Post[];
   loaded: boolean;
   loadPosts: () => Promise<void>;
+  loadAllPosts: () => Promise<void>;
   createPost: (data: Omit<Post, "slug">) => Promise<Post | null>;
   updatePost: (slug: string, data: Partial<Omit<Post, "slug">>) => Promise<Post | null>;
   deletePost: (slug: string) => Promise<boolean>;
@@ -33,6 +34,20 @@ export const usePosts = create<UsePostsState>((set, get) => ({
   loadPosts: async () => {
     try {
       const res = await fetch(`${API_BASE}/api/posts`);
+      const data = await res.json();
+      if (data.success && data.posts) {
+        set({ posts: data.posts, loaded: true });
+      } else {
+        set({ loaded: true });
+      }
+    } catch {
+      set({ loaded: true });
+    }
+  },
+
+  loadAllPosts: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/all`);
       const data = await res.json();
       if (data.success && data.posts) {
         set({ posts: data.posts, loaded: true });

@@ -9,6 +9,7 @@ export interface Post {
   tags: string[];
   category?: string;
   featured?: boolean;
+  status?: "draft" | "published";
 }
 
 const posts: Post[] = [

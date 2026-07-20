@@ -8,18 +8,19 @@ import {
   Calendar,
   Tag,
   AlertCircle,
+  FileText,
 } from "lucide-react";
 import { usePosts } from "@/hooks/usePosts";
 
 export default function PostList() {
   const navigate = useNavigate();
-  const { posts, loaded, loadPosts, deletePost } = usePosts();
+  const { posts, loaded, loadAllPosts, deletePost } = usePosts();
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loaded) loadPosts();
-  }, [loaded, loadPosts]);
+    loadAllPosts();
+  }, [loadAllPosts]);
 
   const handleDelete = async (slug: string) => {
     setDeletingId(slug);
@@ -81,6 +82,12 @@ export default function PostList() {
                 className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider"
                 style={{ color: "var(--blog-muted-foreground)" }}
               >
+                状态
+              </th>
+              <th
+                className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--blog-muted-foreground)" }}
+              >
                 标签
               </th>
               <th
@@ -92,7 +99,9 @@ export default function PostList() {
             </tr>
           </thead>
           <tbody>
-            {posts.map((post) => (
+            {posts.map((post) => {
+              const isPublished = post.status !== "draft";
+              return (
               <tr
                 key={post.slug}
                 style={{
@@ -109,25 +118,55 @@ export default function PostList() {
                   >
                     {post.title}
                   </p>
-                  <p className="blog-caption mt-1">
-                    {post.featured && (
-                      <span
-                        className="text-xs px-2 py-0.5 rounded-full"
-                        style={{
-                          background: "rgba(16,185,129,0.08)",
-                          color: "var(--blog-primary)",
-                        }}
-                      >
-                        置顶
-                      </span>
-                    )}
-                  </p>
+                  {post.excerpt && (
+                    <p
+                      className="blog-caption mt-1 line-clamp-1"
+                      style={{ color: "var(--blog-muted)" }}
+                    >
+                      {post.excerpt}
+                    </p>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5" style={{ color: "var(--blog-muted)" }} />
                     <span className="blog-caption">{post.date}</span>
                   </div>
+                </td>
+                <td className="px-6 py-4">
+                  {isPublished ? (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full"
+                      style={{
+                        background: "rgba(22,163,74,0.1)",
+                        color: "#16a34a",
+                      }}
+                    >
+                      已发布
+                    </span>
+                  ) : (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                      style={{
+                        background: "rgba(234,179,8,0.1)",
+                        color: "#ca8a04",
+                      }}
+                    >
+                      <FileText className="h-3 w-3" />
+                      草稿
+                    </span>
+                  )}
+                  {post.featured && (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full ml-1"
+                      style={{
+                        background: "rgba(16,185,129,0.08)",
+                        color: "var(--blog-primary)",
+                      }}
+                    >
+                      置顶
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
@@ -200,7 +239,8 @@ export default function PostList() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         {posts.length === 0 && (

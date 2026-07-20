@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, Eye, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Eye, AlertCircle, Send, X, Calendar, Tag as TagIcon } from "lucide-react";
 import { usePosts } from "@/hooks/usePosts";
 import RichEditor from "@/components/RichEditor";
 
@@ -12,11 +12,24 @@ interface Category {
   slug: string;
 }
 
+function formatLongDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("zh-CN", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function PostForm() {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug?: string }>();
   const isEdit = !!slug;
-  const { posts, loaded, loadPosts, createPost, updatePost, getAllTags, getPostBySlug } = usePosts();
+  const { posts, loaded, loadPosts, loadAllPosts, createPost, updatePost, getAllTags, getPostBySlug } = usePosts();
 
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -30,6 +43,9 @@ export default function PostForm() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const availableTags = getAllTags();
   const [newTag, setNewTag] = useState("");
@@ -87,7 +103,7 @@ export default function PostForm() {
     setSaveError("");
 
     try {
-      const postData = { title, date, excerpt, content, tags, category, featured };
+      const postData = { title, date, excerpt, content, tags, category, featured, status: "draft" as const };
       let result;
       if (isEdit && slug) {
         result = await updatePost(slug, postData);
@@ -97,6 +113,7 @@ export default function PostForm() {
 
       if (result) {
         setSaved(true);
+        await loadAllPosts();
         setTimeout(() => {
           navigate("/admin/posts");
         }, 1000);
@@ -128,6 +145,54 @@ export default function PostForm() {
       addTag(newTag);
     } else if (e.key === "Backspace" && !newTag && tags.length > 0) {
       removeTag(tags[tags.length - 1]);
+    }
+  };
+
+  const handlePreview = () => {
+    if (!validate()) {
+      setShowPreview(false);
+      return;
+    }
+    setShowPreview(true);
+  };
+
+  const handlePublish = async () => {
+    if (!validate()) return;
+
+    setPublishing(true);
+    setSaveError("");
+
+    try {
+      const postData = { title, date, excerpt, content, tags, category, featured, status: "published" as const };
+      let result;
+      let newSlug = slug;
+      if (isEdit && slug) {
+        result = await updatePost(slug, postData);
+      } else {
+        result = await createPost(postData);
+        if (result && result.slug) {
+          newSlug = result.slug;
+        }
+      }
+
+      if (result) {
+        await loadAllPosts();
+        setSaved(true);
+        setShowPreview(false);
+        setTimeout(() => {
+          if (newSlug) {
+            navigate(`/post/${newSlug}`);
+          } else {
+            navigate("/admin/posts");
+          }
+        }, 800);
+      } else {
+        setSaveError("发布失败，请稍后重试");
+      }
+    } catch {
+      setSaveError("发布失败，请稍后重试");
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -401,29 +466,184 @@ export default function PostForm() {
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-4">
-          {isEdit && slug && (
-            <a
-              href={`/post/${slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
-            >
-              <Eye className="h-4 w-4" />
-              预览文章
-            </a>
-          )}
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={handlePreview}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors"
+            style={{
+              border: "1px solid var(--blog-border)",
+              background: "var(--blog-card)",
+              color: "var(--blog-foreground)",
+            }}
+          >
+            <Eye className="h-4 w-4" />
+            文章预览
+          </button>
+          <button
+            type="button"
+            onClick={handlePublish}
+            disabled={publishing || saving}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: "#0f172a" }}
+          >
+            <Send className="h-4 w-4" />
+            {publishing ? "发布中..." : "发布文章"}
+          </button>
           <button
             type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={saving || publishing}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: "var(--blog-primary)" }}
           >
             <Save className="h-4 w-4" />
-            {saving ? "保存中..." : "保存文章"}
+            {saving ? "保存中..." : "保存草稿"}
           </button>
         </div>
       </form>
+
+      {showPreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in"
+          onClick={() => setShowPreview(false)}
+        >
+          <div
+            className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-lg overflow-hidden"
+            style={{ background: "var(--blog-background)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="flex items-center justify-between px-6 py-3 border-b"
+              style={{ borderColor: "var(--blog-border)" }}
+            >
+              <span className="text-sm font-semibold" style={{ color: "var(--blog-foreground)" }}>
+                文章预览
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPreview(false)}
+                className="p-1.5 rounded-md hover:bg-primary/10 transition-colors"
+                style={{ color: "var(--blog-muted-foreground)" }}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto px-6 py-8">
+              <article className="animate-fade-in">
+                <header className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Calendar className="h-4 w-4" style={{ color: "var(--blog-muted)" }} />
+                    <time className="blog-small">{formatLongDate(date)}</time>
+                  </div>
+                  <h1
+                    className="blog-h1 mb-4"
+                    style={{ fontSize: "2.25rem" }}
+                  >
+                    {title || "无标题"}
+                  </h1>
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="blog-caption inline-flex items-center gap-1"
+                          style={{
+                            padding: "3px 10px",
+                            border: "1px solid var(--blog-border)",
+                            borderRadius: "var(--blog-radius-sm)",
+                            color: "var(--blog-muted-foreground)",
+                          }}
+                        >
+                          <TagIcon className="h-3 w-3" />
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </header>
+
+                {excerpt && (
+                  <p
+                    className="blog-body mb-6 italic"
+                    style={{
+                      color: "var(--blog-muted-foreground)",
+                      borderLeft: "3px solid var(--blog-primary)",
+                      paddingLeft: "1em",
+                    }}
+                  >
+                    {excerpt}
+                  </p>
+                )}
+
+                <div
+                  className="prose-editorial"
+                  dangerouslySetInnerHTML={{ __html: content }}
+                  ref={(el) => {
+                    if (el) {
+                      const images = el.querySelectorAll("img");
+                      images.forEach((img) => {
+                        img.style.cursor = "zoom-in";
+                        img.addEventListener("click", (e) => {
+                          const target = e.target as HTMLImageElement;
+                          setPreviewImage(target.src);
+                        });
+                      });
+                    }
+                  }}
+                />
+              </article>
+            </div>
+
+            <div
+              className="flex items-center justify-end gap-2 px-6 py-3 border-t"
+              style={{ borderColor: "var(--blog-border)" }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowPreview(false)}
+                className="px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                style={{
+                  border: "1px solid var(--blog-border)",
+                  color: "var(--blog-foreground)",
+                }}
+              >
+                关闭预览
+              </button>
+              <button
+                type="button"
+                onClick={handlePublish}
+                disabled={publishing}
+                className="flex items-center gap-2 px-5 py-2 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: "var(--blog-primary)" }}
+              >
+                <Send className="h-4 w-4" />
+                {publishing ? "发布中..." : "确认发布"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            onClick={() => setPreviewImage(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={previewImage}
+            alt="预览"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

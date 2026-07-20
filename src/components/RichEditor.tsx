@@ -38,7 +38,7 @@ function parseMarkdown(text: string): string {
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
     const language = lang || "plaintext";
     const highlighted = hljs.highlight(code.trim(), { language }).value;
-    return `<pre class="hljs"><code class="language-${language}">${highlighted}</code></pre>`;
+    return `<pre class="hljs" style="white-space: pre-wrap; word-break: break-word; overflow-x: auto;"><code class="language-${language}">${highlighted}</code></pre>`;
   });
 
   html = html.replace(/`([^`]+)`/g, "<code class=\"inline-code\">$1</code>");
@@ -169,7 +169,27 @@ export default function RichEditor({
         document.execCommand(command, false, url);
       }
     } else if (command === "inlineCode") {
-      document.execCommand("formatBlock", false, "code");
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString();
+        const code = document.createElement("code");
+        code.textContent = selectedText || "code";
+        range.deleteContents();
+        range.insertNode(code);
+      }
+    } else if (command === "formatBlock" && value === "pre") {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString();
+        const pre = document.createElement("pre");
+        const code = document.createElement("code");
+        code.textContent = selectedText || "// 在此输入代码";
+        pre.appendChild(code);
+        range.deleteContents();
+        range.insertNode(pre);
+      }
     } else if (command === "formatBlock" && value) {
       document.execCommand(command, false, value);
     } else {
@@ -254,33 +274,59 @@ export default function RichEditor({
   };
 
   const insertCodeBlock = (language: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    if (mode === "markdown") {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = value.substring(start, end);
-    const before = value.substring(0, start);
-    const after = value.substring(end);
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = value.substring(start, end);
+      const before = value.substring(0, start);
+      const after = value.substring(end);
 
-    const codeBlock = `\n\`\`\`${language}\n${selectedText || "// 在此输入代码"}
+      const codeBlock = `\n\`\`\`${language}\n${selectedText || "// 在此输入代码"}
 \`\`\`\n`;
-    const newText = before + codeBlock + after;
-    onChange(newText);
-    setShowCodeDropdown(false);
+      const newText = before + codeBlock + after;
+      onChange(newText);
+      setShowCodeDropdown(false);
 
-    setTimeout(() => {
-      textarea.focus();
-      const codeStart = start + 4 + language.length + 1;
-      textarea.selectionStart = codeStart;
-      textarea.selectionEnd = codeStart + (selectedText.length || 14);
-    }, 0);
+      setTimeout(() => {
+        textarea.focus();
+        const codeStart = start + 4 + language.length + 1;
+        textarea.selectionStart = codeStart;
+        textarea.selectionEnd = codeStart + (selectedText.length || 14);
+      }, 0);
+    } else {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0 && editorRef.current) {
+        editorRef.current.focus();
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString();
+        const pre = document.createElement("pre");
+        const code = document.createElement("code");
+        code.setAttribute("data-language", language);
+        code.textContent = selectedText || `// ${language} 代码\n// 在此输入代码`;
+        pre.appendChild(code);
+        range.deleteContents();
+        range.insertNode(pre);
+        onChange(editorRef.current.innerHTML);
+      }
+      setShowCodeDropdown(false);
+    }
   };
 
   const toolbarClick = (btn: ToolbarButton) => {
     if (mode === "rich") {
-      execCommand(btn.command, btn.value);
+      if (btn.command === "formatBlock" && btn.value === "pre") {
+        setShowCodeDropdown(!showCodeDropdown);
+      } else {
+        execCommand(btn.command, btn.value);
+      }
     } else {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        textarea.focus();
+      }
       switch (btn.command) {
         case "bold":
           insertMarkdownFormat("**", "**");
@@ -339,7 +385,7 @@ export default function RichEditor({
                   >
                     <Icon className="h-5 w-5" />
                   </button>
-                  {showCodeDropdown && mode === "markdown" && (
+                  {showCodeDropdown && (
                     <div
                       className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-50 min-w-[150px]"
                       style={{ borderColor: "var(--blog-border)" }}
@@ -434,30 +480,18 @@ export default function RichEditor({
           suppressContentEditableWarning
         />
       ) : (
-        <div className="flex min-h-[400px]">
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={handleMarkdownChange}
-            placeholder={placeholder}
-            className="w-1/2 min-h-[400px] p-4 text-sm font-mono focus:outline-none resize-none border-r"
-            style={{
-              background: "var(--blog-background)",
-              color: "var(--blog-foreground)",
-              lineHeight: "1.6",
-              borderColor: "var(--blog-border)",
-            }}
-          />
-          <div
-            className="w-1/2 min-h-[400px] p-4 overflow-auto font-sans"
-            style={{
-              background: "#ffffff",
-              color: "#333333",
-              lineHeight: "1.6",
-            }}
-            dangerouslySetInnerHTML={{ __html: parseMarkdown(value) }}
-          />
-        </div>
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleMarkdownChange}
+          placeholder={placeholder}
+          className="w-full min-h-[400px] p-4 text-sm font-mono focus:outline-none resize-none"
+          style={{
+            background: "var(--blog-background)",
+            color: "var(--blog-foreground)",
+            lineHeight: "1.6",
+          }}
+        />
       )}
 
       {uploading && (
