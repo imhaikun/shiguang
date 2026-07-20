@@ -94,6 +94,23 @@ const basicButtons: ToolbarButton[] = [
   { icon: ListOrdered, command: "insertOrderedList", title: "有序列表" },
 ];
 
+const codeLanguages = [
+  { value: "javascript", label: "JavaScript" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "python", label: "Python" },
+  { value: "go", label: "Go" },
+  { value: "rust", label: "Rust" },
+  { value: "java", label: "Java" },
+  { value: "html", label: "HTML" },
+  { value: "css", label: "CSS" },
+  { value: "sql", label: "SQL" },
+  { value: "bash", label: "Bash" },
+  { value: "json", label: "JSON" },
+  { value: "yaml", label: "YAML" },
+  { value: "markdown", label: "Markdown" },
+  { value: "plaintext", label: "Plain Text" },
+];
+
 export default function RichEditor({
   value,
   onChange,
@@ -105,6 +122,8 @@ export default function RichEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [showCodeDropdown, setShowCodeDropdown] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("javascript");
 
   useEffect(() => {
     if (externalMode) {
@@ -117,6 +136,17 @@ export default function RichEditor({
       editorRef.current.innerHTML = value || "<p></p>";
     }
   }, [value, mode]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (showCodeDropdown && !target.closest('[title="代码块"]')) {
+        setShowCodeDropdown(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showCodeDropdown]);
 
   const handleModeToggle = (newMode: "rich" | "markdown") => {
     setMode(newMode);
@@ -219,6 +249,30 @@ export default function RichEditor({
     }, 0);
   };
 
+  const insertCodeBlock = (language: string) => {
+    const activeEl = document.activeElement;
+    if (!(activeEl instanceof HTMLTextAreaElement)) return;
+
+    const start = activeEl.selectionStart;
+    const end = activeEl.selectionEnd;
+    const selectedText = value.substring(start, end);
+    const before = value.substring(0, start);
+    const after = value.substring(end);
+
+    const codeBlock = `\n\`\`\`${language}\n${selectedText || "// 在此输入代码"}
+\`\`\`\n`;
+    const newText = before + codeBlock + after;
+    onChange(newText);
+    setShowCodeDropdown(false);
+
+    setTimeout(() => {
+      activeEl.focus();
+      const codeStart = start + 4 + language.length + 1;
+      activeEl.selectionStart = codeStart;
+      activeEl.selectionEnd = codeStart + (selectedText.length || 14);
+    }, 0);
+  };
+
   const toolbarClick = (btn: ToolbarButton) => {
     if (mode === "rich") {
       execCommand(btn.command, btn.value);
@@ -235,7 +289,7 @@ export default function RichEditor({
           break;
         case "formatBlock":
           if (btn.value === "pre") {
-            insertMarkdownFormat("\n```\n", "\n```\n");
+            setShowCodeDropdown(!showCodeDropdown);
           } else if (btn.value === "h2") {
             insertMarkdownFormat("\n## ");
           } else if (btn.value === "blockquote") {
@@ -261,9 +315,44 @@ export default function RichEditor({
         className="flex items-center justify-between px-3 py-2"
         style={{ background: "var(--blog-card)", borderBottom: "1px solid var(--blog-border)" }}
       >
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 relative">
           {basicButtons.map((btn) => {
             const Icon = btn.icon;
+            if (btn.command === "formatBlock" && btn.value === "pre") {
+              return (
+                <div key={btn.title} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => toolbarClick(btn)}
+                    className={cn(
+                      "p-2 rounded-md transition-colors hover:bg-primary/10 hover:text-primary"
+                    )}
+                    style={{ color: "var(--blog-foreground)" }}
+                    title={btn.title}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </button>
+                  {showCodeDropdown && mode === "markdown" && (
+                    <div
+                      className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-50 min-w-[150px]"
+                      style={{ borderColor: "var(--blog-border)" }}
+                    >
+                      {codeLanguages.map((lang) => (
+                        <button
+                          key={lang.value}
+                          type="button"
+                          onClick={() => insertCodeBlock(lang.value)}
+                          className="w-full px-3 py-1.5 text-sm text-left hover:bg-primary/10 hover:text-primary"
+                          style={{ color: "var(--blog-foreground)" }}
+                        >
+                          {lang.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
             return (
               <button
                 key={btn.title}
@@ -290,7 +379,6 @@ export default function RichEditor({
           >
             <ImageIcon className="h-5 w-5" />
           </button>
-
         </div>
 
         <div className="flex items-center gap-2">
@@ -353,9 +441,13 @@ export default function RichEditor({
             }}
           />
           <div
-            className="w-1/2 min-h-[400px] p-4 overflow-auto bg-gray-900"
+            className="w-1/2 min-h-[400px] p-4 overflow-auto font-sans"
+            style={{
+              background: "#0d1117",
+              color: "#c9d1d9",
+              lineHeight: "1.6",
+            }}
             dangerouslySetInnerHTML={{ __html: parseMarkdown(value) }}
-            style={{ color: "var(--blog-foreground)" }}
           />
         </div>
       )}
