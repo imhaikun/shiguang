@@ -7,6 +7,7 @@ export interface Post {
   excerpt: string;
   content: string; // 含简单 HTML 标记
   tags: string[];
+  category?: string;
   featured?: boolean;
 }
 
