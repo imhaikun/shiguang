@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import hljs from "highlight.js";
-import "highlight.js/styles/github-dark.css";
+import "highlight.js/styles/github.css";
 
 function getApiBase(): string {
   if (import.meta.env.DEV) return "";
@@ -86,6 +86,7 @@ const basicButtons: ToolbarButton[] = [
   { icon: Bold, command: "bold", title: "加粗" },
   { icon: Italic, command: "italic", title: "斜体" },
   { icon: Strikethrough, command: "strikeThrough", title: "删除线" },
+  { icon: Code, command: "inlineCode", title: "行内代码" },
   { icon: Code, command: "formatBlock", value: "pre", title: "代码块" },
   { icon: Link, command: "createLink", title: "插入链接" },
   { icon: Heading2, command: "formatBlock", value: "h2", title: "标题" },
@@ -287,6 +288,9 @@ export default function RichEditor({
         case "strikeThrough":
           insertMarkdownFormat("~~", "~~");
           break;
+        case "inlineCode":
+          insertMarkdownFormat("`", "`");
+          break;
         case "formatBlock":
           if (btn.value === "pre") {
             setShowCodeDropdown(!showCodeDropdown);
@@ -443,8 +447,8 @@ export default function RichEditor({
           <div
             className="w-1/2 min-h-[400px] p-4 overflow-auto font-sans"
             style={{
-              background: "#0d1117",
-              color: "#c9d1d9",
+              background: "#ffffff",
+              color: "#333333",
               lineHeight: "1.6",
             }}
             dangerouslySetInnerHTML={{ __html: parseMarkdown(value) }}
