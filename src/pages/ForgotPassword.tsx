@@ -66,7 +66,7 @@ export default function ForgotPassword() {
       if (!res.ok || !data.success) {
         throw new Error(data.message || "发送失败");
       }
-      showSuccess("验证码已发送，请查收邮件");
+      showSuccess(data.code ? `验证码：${data.code}` : "验证码已发送，请查收邮件");
       startCountdown();
     } catch (err) {
       showError(err instanceof Error ? err.message : "发送失败");
