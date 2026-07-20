@@ -5,6 +5,8 @@ import crypto from "crypto";
 import { fileURLToPath } from "url";
 import cors from "cors";
 import nodemailer from "nodemailer";
+import bcrypt from "bcryptjs";
+import svgCaptcha from "svg-captcha";
 
 const app = express();
 const PORT = 3001;
@@ -48,6 +50,23 @@ interface ResetToken {
   expireAt: number;
 }
 const resetTokenCache = new Map<string, ResetToken>();
+
+// 验证码缓存（生产环境建议用 Redis）
+interface CaptchaData {
+  code: string;
+  expireAt: number;
+}
+const captchaCache = new Map<string, CaptchaData>();
+
+// 生成随机验证码
+function generateCaptchaCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "";
+  for (let i = 0; i < 4; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
 const TOKEN_TTL_MS = 10 * 60 * 1000; // 10 分钟
 
 function generateToken(): string {
@@ -76,17 +95,73 @@ function getTransporter() {
 }
 
 app.post("/api/login", (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, captchaKey, captchaCode } = req.body;
+
+  const captchaData = captchaCache.get(captchaKey);
+  if (!captchaData || Date.now() > captchaData.expireAt) {
+    return res.status(401).json({ success: false, message: "验证码已过期，请刷新重试" });
+  }
+
+  if (captchaCode.toUpperCase() !== captchaData.code.toUpperCase()) {
+    return res.status(401).json({ success: false, message: "验证码错误" });
+  }
+
+  captchaCache.delete(captchaKey);
+
   const db = readDB();
-  const user = db.users.find(u => u.username === username && u.password === password);
+  const user = db.users.find(u => u.username === username);
   if (user) {
-    res.json({
-      success: true,
-      user: { id: user.id, username: user.username, email: user.email, role: user.role }
-    });
+    let isPasswordValid = false;
+    const isHashed = user.password.startsWith("$2a$") || user.password.startsWith("$2b$") || user.password.startsWith("$2y$");
+    
+    if (isHashed) {
+      isPasswordValid = bcrypt.compareSync(password, user.password);
+    } else {
+      isPasswordValid = user.password === password;
+      if (isPasswordValid) {
+        const hashedPassword = bcrypt.hashSync(password, 10);
+        user.password = hashedPassword;
+        writeDB(db);
+      }
+    }
+    
+    if (isPasswordValid) {
+      const sessionToken = generateToken();
+      res.json({
+        success: true,
+        user: { id: user.id, username: user.username, email: user.email, role: user.role },
+        token: sessionToken
+      });
+    } else {
+      res.status(401).json({ success: false, message: "用户名或密码错误" });
+    }
   } else {
     res.status(401).json({ success: false, message: "用户名或密码错误" });
   }
+});
+
+app.get("/api/captcha", (req, res) => {
+  const captchaKey = crypto.randomBytes(16).toString("hex");
+  const captcha = svgCaptcha.create({
+    size: 4,
+    ignoreChars: "0oO1lI",
+    noise: 4,
+    color: true,
+    background: "#f5f5f5",
+    width: 120,
+    height: 48
+  });
+  
+  captchaCache.set(captchaKey, {
+    code: captcha.text,
+    expireAt: Date.now() + 5 * 60 * 1000
+  });
+
+  res.json({
+    success: true,
+    captchaKey,
+    svg: captcha.data
+  });
 });
 
 app.get("/api/users/:id", (req, res) => {
@@ -127,8 +202,10 @@ app.put("/api/users/:id/password", (req, res) => {
   const db = readDB();
   const index = db.users.findIndex(u => u.id === id);
   if (index !== -1) {
-    if (db.users[index].password === currentPassword) {
-      db.users[index].password = newPassword;
+    const isPasswordValid = bcrypt.compareSync(currentPassword, db.users[index].password);
+    if (isPasswordValid) {
+      const hashedPassword = bcrypt.hashSync(newPassword, 10);
+      db.users[index].password = hashedPassword;
       writeDB(db);
       res.json({ success: true, message: "密码修改成功" });
     } else {
@@ -229,7 +306,8 @@ app.post("/api/auth/forgot-password/reset", (req, res) => {
     return;
   }
 
-  db.users[index].password = newPassword;
+  const hashedPassword = bcrypt.hashSync(newPassword, 10);
+  db.users[index].password = hashedPassword;
   writeDB(db);
   resetTokenCache.delete(token);
 

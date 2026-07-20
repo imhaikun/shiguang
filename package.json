@@ -13,12 +13,14 @@
   },
   "dependencies": {
     "@types/highlight.js": "^9.12.4",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "highlight.js": "^11.11.1",
     "lucide-react": "^0.511.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.3.0",
+    "svg-captcha": "^1.4.0",
     "tailwind-merge": "^3.0.2",
     "zustand": "^5.0.3"
   },

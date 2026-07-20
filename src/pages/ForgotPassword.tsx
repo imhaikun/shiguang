@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { Mail, Lock, ArrowLeft, AlertCircle, Check, Loader2, Copy, ExternalLink } from "lucide-react";
+import { Mail, Lock, ArrowLeft, AlertCircle, Check, Loader2 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
@@ -19,7 +19,6 @@ export default function ForgotPassword() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [resetLink, setResetLink] = useState("");
 
   useEffect(() => {
     if (token) {
@@ -70,18 +69,10 @@ export default function ForgotPassword() {
     }, 1000);
   };
 
-  const copyLink = async () => {
-    if (resetLink) {
-      await navigator.clipboard.writeText(resetLink);
-      showSuccess("链接已复制到剪贴板");
-    }
-  };
-
   const handleSendLink = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError("");
     setSuccess("");
-    setResetLink("");
 
     if (!email.trim()) {
       showError("请输入邮箱地址");
@@ -104,9 +95,6 @@ export default function ForgotPassword() {
         throw new Error(data.message || "发送失败");
       }
       showSuccess(data.message);
-      if (data.link) {
-        setResetLink(data.link);
-      }
       startCountdown();
     } catch (err) {
       showError(err instanceof Error ? err.message : "发送失败");
@@ -223,39 +211,6 @@ export default function ForgotPassword() {
             <span className="blog-small text-sm" style={{ color: "#16a34a" }}>
               {success}
             </span>
-          </div>
-        )}
-
-        {resetLink && (
-          <div
-            className="mb-4 p-4 rounded-md"
-            style={{
-              background: "rgba(59,130,246,0.08)",
-              border: "1px solid rgba(59,130,246,0.2)",
-            }}
-          >
-            <p className="blog-small mb-2" style={{ color: "var(--blog-muted)" }}>重置密码链接：</p>
-            <div className="flex items-center gap-2">
-              <span className="flex-1 text-xs truncate" style={{ color: "#3b82f6" }}>
-                {resetLink}
-              </span>
-              <button
-                onClick={copyLink}
-                className="p-1.5 rounded hover:bg-blue-100 transition-colors"
-                title="复制链接"
-              >
-                <Copy className="h-4 w-4" style={{ color: "#3b82f6" }} />
-              </button>
-              <a
-                href={resetLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1.5 rounded hover:bg-blue-100 transition-colors"
-                title="在新窗口打开"
-              >
-                <ExternalLink className="h-4 w-4" style={{ color: "#3b82f6" }} />
-              </a>
-            </div>
           </div>
         )}
 

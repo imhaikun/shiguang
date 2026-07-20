@@ -11,7 +11,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string, captchaKey?: string, captchaCode?: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   updateProfile: (data: Partial<Pick<User, "username" | "email">>) => Promise<boolean>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
@@ -64,21 +64,26 @@ export const useAuth = create<AuthState>((set, get) => ({
   token: null,
   isAuthenticated: false,
 
-  login: async (username: string, password: string) => {
+  login: async (username: string, password: string, captchaKey?: string, captchaCode?: string) => {
     try {
-      const result = await fetchApi<{ success: boolean; user: User }>("/api/login", {
-        method: "POST",
-        body: JSON.stringify({ username, password }),
-      });
-      if (result.success && result.user) {
-        localStorage.setItem(STORAGE_KEYS.token, "shiguang-admin-token");
-        saveUser(result.user);
-        set({ user: result.user, token: "shiguang-admin-token", isAuthenticated: true });
-        return true;
+      const body: Record<string, string> = { username, password };
+      if (captchaKey && captchaCode) {
+        body.captchaKey = captchaKey;
+        body.captchaCode = captchaCode;
       }
-      return false;
-    } catch {
-      return false;
+      const result = await fetchApi<{ success: boolean; user: User; token: string }>("/api/login", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      if (result.success && result.user && result.token) {
+        localStorage.setItem(STORAGE_KEYS.token, result.token);
+        saveUser(result.user);
+        set({ user: result.user, token: result.token, isAuthenticated: true });
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : "登录失败" };
     }
   },
 

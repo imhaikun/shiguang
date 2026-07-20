@@ -3,15 +3,12 @@ import { useNavigate, Link } from "react-router-dom";
 import { Lock, Mail, AlertCircle, Loader2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
-// 生成随机验证码
-function generateCaptcha(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let result = "";
-  for (let i = 0; i < 4; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+function getApiBase(): string {
+  if (import.meta.env.DEV) return "";
+  return "https://api.202616.xyz";
 }
+
+const API_BASE = /* @__NOINLINE */ getApiBase();
 
 export default function Login() {
   const navigate = useNavigate();
@@ -21,66 +18,29 @@ export default function Login() {
   const [captchaInput, setCaptchaInput] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [captchaCode, setCaptchaCode] = useState(generateCaptcha);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [captchaKey, setCaptchaKey] = useState("");
+  const [captchaSvg, setCaptchaSvg] = useState("");
 
-  // 绘制验证码到 Canvas
-  const drawCaptcha = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const w = canvas.width;
-    const h = canvas.height;
-
-    // 清空背景
-    ctx.fillStyle = "#f5f5f5";
-    ctx.fillRect(0, 0, w, h);
-
-    // 绘制干扰线
-    for (let i = 0; i < 4; i++) {
-      ctx.strokeStyle = `rgba(${Math.random() * 150}, ${Math.random() * 150}, ${Math.random() * 150}, 0.5)`;
-      ctx.beginPath();
-      ctx.moveTo(Math.random() * w, Math.random() * h);
-      ctx.lineTo(Math.random() * w, Math.random() * h);
-      ctx.stroke();
+  const fetchCaptcha = useCallback(async () => {
+    try {
+      const response = await fetch(API_BASE + "/api/captcha");
+      const data = await response.json();
+      if (data.success) {
+        setCaptchaKey(data.captchaKey);
+        setCaptchaSvg(data.svg);
+        setCaptchaInput("");
+      }
+    } catch {
+      console.error("获取验证码失败");
     }
-
-    // 绘制干扰点
-    for (let i = 0; i < 20; i++) {
-      ctx.fillStyle = `rgba(${Math.random() * 150}, ${Math.random() * 150}, ${Math.random() * 150}, 0.6)`;
-      ctx.beginPath();
-      ctx.arc(Math.random() * w, Math.random() * h, 1, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // 绘制验证码字符
-    const colors = ["#1e293b", "#10b981", "#dc2626", "#2563eb", "#7c3aed", "#db2777"];
-    const chars = captchaCode.split("");
-    const charWidth = w / (chars.length + 1);
-    chars.forEach((char, i) => {
-      ctx.save();
-      ctx.font = `bold ${24 + Math.random() * 6}px "Inter", "Noto Sans SC", sans-serif`;
-      ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const x = charWidth * (i + 1);
-      const y = h / 2 + (Math.random() - 0.5) * 8;
-      ctx.translate(x, y);
-      ctx.rotate((Math.random() - 0.5) * 0.5);
-      ctx.fillText(char, 0, 0);
-      ctx.restore();
-    });
-  }, [captchaCode]);
+  }, []);
 
   useEffect(() => {
-    drawCaptcha();
-  }, [drawCaptcha]);
+    fetchCaptcha();
+  }, [fetchCaptcha]);
 
   const refreshCaptcha = () => {
-    setCaptchaCode(generateCaptcha());
-    setCaptchaInput("");
+    fetchCaptcha();
   };
 
   if (isAuthenticated) {
@@ -92,22 +52,20 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
-    // 校验验证码（不区分大小写）
-    if (captchaInput.toUpperCase() !== captchaCode.toUpperCase()) {
-      setError("验证码错误，请重新输入");
-      refreshCaptcha();
+    if (!captchaKey) {
+      setError("获取验证码失败，请刷新页面");
       return;
     }
 
     setLoading(true);
 
-    const success = await login(username, password);
+    const result = await login(username, password, captchaKey, captchaInput);
     setLoading(false);
 
-    if (success) {
+    if (result.success) {
       navigate("/admin");
     } else {
-      setError("用户名或密码错误，请使用 admin/admin");
+      setError(result.message || "登录失败，请检查账号密码和验证码");
       refreshCaptcha();
     }
   };
@@ -259,16 +217,16 @@ export default function Login() {
                   onBlur={(e) => (e.currentTarget.style.borderColor = "var(--blog-border)")}
                 />
               </div>
-              <canvas
-                ref={canvasRef}
-                width={120}
-                height={48}
+              <img
+                src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`}
                 onClick={refreshCaptcha}
                 title="点击刷新验证码"
                 className="rounded-md cursor-pointer flex-shrink-0"
                 style={{
                   border: "1px solid var(--blog-border)",
                   background: "#f5f5f5",
+                  width: "120px",
+                  height: "48px",
                 }}
               />
             </div>
