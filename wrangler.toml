@@ -17,6 +17,10 @@ binding = "IMAGES_BUCKET"
 bucket_name = "xyz"
 
 [vars]
-MAIL_FROM = ""
-MAIL_FROM_NAME = "那斯棧"
+MAIL_FROM = "imloyo@qq.com"
+MAIL_FROM_NAME = "那斯小棧"
 IMAGE_CDN_URL = "https://images.202616.xyz"
+SMTP_HOST = "smtp.qq.com"
+SMTP_PORT = "587"
+SMTP_USER = "imloyo@qq.com"
+SMTP_PASS = "ouavnncapnsfcbcj"
