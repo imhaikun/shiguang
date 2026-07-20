@@ -20,8 +20,3 @@ bucket_name = "xyz"
 MAIL_FROM = ""
 MAIL_FROM_NAME = "那斯棧"
 IMAGE_CDN_URL = "https://images.202616.xyz"
-
-[pages]
-project_name = "shiguang"
-build_command = "npm run build"
-build_output_dir = "dist"
