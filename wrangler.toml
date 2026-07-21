@@ -19,4 +19,3 @@ bucket_name = "xyz"
 [vars]
 MAIL_FROM_NAME = "那斯小棧"
 IMAGE_CDN_URL = "https://images.202616.xyz"
-RESEND_API_KEY = "re_Si2bx512_GPAJoHbkZnovtZVerkFC4QvX"

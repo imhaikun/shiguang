@@ -96,7 +96,7 @@ export default function Header() {
             >
               {getCurrentIcon() === Monitor ? (
                 <Monitor className="h-4 w-4" />
-              ) : isDark ? (
+              ) : getCurrentIcon() === Sun ? (
                 <Sun className="h-4 w-4" />
               ) : (
                 <Moon className="h-4 w-4" />
@@ -146,7 +146,7 @@ export default function Header() {
           >
             {getCurrentIcon() === Monitor ? (
               <Monitor className="h-4 w-4" />
-            ) : isDark ? (
+            ) : getCurrentIcon() === Sun ? (
               <Sun className="h-4 w-4" />
             ) : (
               <Moon className="h-4 w-4" />
