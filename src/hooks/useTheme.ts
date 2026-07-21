@@ -10,10 +10,10 @@ interface ThemeState {
 }
 
 const getInitialMode = (): ThemeMode => {
-  if (typeof window === "undefined") return "auto";
+  if (typeof window === "undefined") return "light";
   const saved = localStorage.getItem("theme") as ThemeMode | null;
   if (saved === "light" || saved === "dark" || saved === "auto") return saved;
-  return "auto";
+  return "light";
 };
 
 const getSystemTheme = (): "light" | "dark" => {

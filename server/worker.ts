@@ -9,16 +9,14 @@ export interface User {
   role: string;
 }
 
+import * as bcrypt from "bcryptjs";
+
 export interface Env {
   USERS_KV: KVNamespace;
   IMAGES_BUCKET: R2Bucket;
-  MAIL_FROM?: string;
   MAIL_FROM_NAME?: string;
   IMAGE_CDN_URL?: string;
-  SMTP_HOST?: string;
-  SMTP_PORT?: string;
-  SMTP_USER?: string;
-  SMTP_PASS?: string;
+  RESEND_API_KEY?: string;
 }
 
 const USERS_KEY = "users";
@@ -325,8 +323,43 @@ function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-async function sendEmail(env: Env, to: string, code: string): Promise<boolean> {
-  return false;
+async function sendEmail(env: Env, to: string, resetUrl: string): Promise<boolean> {
+  const resendApiKey = env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    return false;
+  }
+
+  try {
+    const fromEmail = "no-reply@202616.xyz";
+    const fromName = env.MAIL_FROM_NAME || "那斯小棧";
+    
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: [to],
+        subject: "那斯小棧 - 密码重置",
+        html: `
+          <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #10b981;">那斯小棧</h2>
+            <p>您正在进行密码重置操作，请点击下方链接设置新密码：</p>
+            <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; margin: 24px 0;">重置密码</a>
+            <p style="color: #666; font-size: 14px;">链接 10 分钟内有效，请勿泄露给他人。</p>
+            <p style="color: #999; font-size: 12px; margin-top: 20px;">如果您未申请重置密码，请忽略此邮件。</p>
+          </div>
+        `,
+      }),
+    });
+
+    const data = await response.json();
+    return response.ok && data.id;
+  } catch {
+    return false;
+  }
 }
 
 export default {
@@ -350,14 +383,15 @@ export default {
     if (path === "/api/reset-admin" && method === "GET") {
       const users = await readUsers(env.USERS_KV);
       const adminIndex = users.findIndex(u => u.username === "admin");
+      const hashedPassword = bcrypt.hashSync("admin", 10);
       if (adminIndex !== -1) {
-        users[adminIndex].password = "admin";
+        users[adminIndex].password = hashedPassword;
       } else {
         users.push({
           id: String(Date.now()),
           username: "admin",
           email: "admin@shiguang.dev",
-          password: "admin",
+          password: hashedPassword,
           role: "admin",
         });
       }
@@ -383,16 +417,99 @@ export default {
       return jsonResponse({ success: false, message: "管理员用户不存在" }, 404);
     }
 
+    // 验证码
+    if (path === "/api/captcha" && method === "GET") {
+      const captchaKey = generateToken();
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code = "";
+      for (let i = 0; i < 4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      await env.USERS_KV.put(`captcha:${captchaKey}`, code, { expirationTtl: 5 * 60 });
+      
+      const svgWidth = 120;
+      const svgHeight = 48;
+      const fontSize = 24;
+      const noiseCount = 4;
+      
+      let svgContent = `<svg width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">`;
+      svgContent += `<rect width="100%" height="100%" fill="#f5f5f5"/>`;
+      
+      for (let i = 0; i < noiseCount; i++) {
+        const x1 = Math.random() * svgWidth;
+        const y1 = Math.random() * svgHeight;
+        const x2 = Math.random() * svgWidth;
+        const y2 = Math.random() * svgHeight;
+        const r = Math.floor(Math.random() * 150);
+        const g = Math.floor(Math.random() * 150);
+        const b = Math.floor(Math.random() * 150);
+        svgContent += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(${r},${g},${b},0.5)" stroke-width="1"/>`;
+      }
+      
+      for (let i = 0; i < 20; i++) {
+        const x = Math.random() * svgWidth;
+        const y = Math.random() * svgHeight;
+        const r = Math.floor(Math.random() * 150);
+        const g = Math.floor(Math.random() * 150);
+        const b = Math.floor(Math.random() * 150);
+        svgContent += `<circle cx="${x}" cy="${y}" r="1" fill="rgba(${r},${g},${b},0.6)"/>`;
+      }
+      
+      const colors = ["#1e293b", "#10b981", "#dc2626", "#2563eb", "#7c3aed", "#db2777"];
+      const charWidth = svgWidth / (code.length + 1);
+      for (let i = 0; i < code.length; i++) {
+        const char = code.charAt(i);
+        const x = charWidth * (i + 1);
+        const y = svgHeight / 2;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const rotate = (Math.random() - 0.5) * 30;
+        svgContent += `<text x="${x}" y="${y}" font-size="${fontSize}" font-weight="bold" fill="${color}" text-anchor="middle" dominant-baseline="middle" transform="rotate(${rotate},${x},${y})">${char}</text>`;
+      }
+      
+      svgContent += "</svg>";
+      
+      return jsonResponse({ success: true, captchaKey, svg: svgContent });
+    }
+
     // 登录
     if (path === "/api/login" && method === "POST") {
-      const { username, password } = await request.json();
+      const { username, password, captchaKey, captchaCode } = await request.json();
+      
+      const storedCode = await env.USERS_KV.get(`captcha:${captchaKey}`);
+      if (!storedCode) {
+        return jsonResponse({ success: false, message: "验证码已过期，请刷新重试" }, 401);
+      }
+      await env.USERS_KV.delete(`captcha:${captchaKey}`);
+      
+      if (captchaCode.toUpperCase() !== storedCode.toUpperCase()) {
+        return jsonResponse({ success: false, message: "验证码错误" }, 401);
+      }
+      
       const users = await readUsers(env.USERS_KV);
-      const user = users.find(u => u.username === username && u.password === password);
+      const user = users.find(u => u.username === username);
       if (user) {
-        return jsonResponse({
-          success: true,
-          user: { id: user.id, username: user.username, email: user.email, role: user.role },
-        });
+        const isHashed = user.password.startsWith("$2a$") || user.password.startsWith("$2b$") || user.password.startsWith("$2y$");
+        let isPasswordValid = false;
+        
+        if (isHashed) {
+          isPasswordValid = bcrypt.compareSync(password, user.password);
+        } else {
+          isPasswordValid = user.password === password;
+          if (isPasswordValid) {
+            const hashedPassword = bcrypt.hashSync(password, 10);
+            user.password = hashedPassword;
+            await writeUsers(env.USERS_KV, users);
+          }
+        }
+        
+        if (isPasswordValid) {
+          const sessionToken = generateToken();
+          return jsonResponse({
+            success: true,
+            user: { id: user.id, username: user.username, email: user.email, role: user.role },
+            token: sessionToken,
+          });
+        }
       }
       return jsonResponse({ success: false, message: "用户名或密码错误" }, 401);
     }
@@ -595,8 +712,11 @@ export default {
       const users = await readUsers(env.USERS_KV);
       const index = users.findIndex(u => u.id === id);
       if (index !== -1) {
-        if (users[index].password === currentPassword) {
-          users[index].password = newPassword;
+        const isHashed = users[index].password.startsWith("$2a$") || users[index].password.startsWith("$2b$") || users[index].password.startsWith("$2y$");
+        const isPasswordValid = isHashed ? bcrypt.compareSync(currentPassword, users[index].password) : users[index].password === currentPassword;
+        if (isPasswordValid) {
+          const hashedPassword = bcrypt.hashSync(newPassword, 10);
+          users[index].password = hashedPassword;
           await writeUsers(env.USERS_KV, users);
           return jsonResponse({ success: true, message: "密码修改成功" });
         }
@@ -624,8 +744,9 @@ export default {
 
       const sent = await sendEmail(env, email, resetUrl);
       if (!sent) {
-        return jsonResponse({ success: true, message: "重置链接已生成", link: resetUrl });
+        return jsonResponse({ success: false, message: "邮件发送失败，请稍后重试" }, 500);
       }
+
       return jsonResponse({ success: true, message: "重置链接已发送，请查收邮件" });
     }
 
@@ -663,7 +784,7 @@ export default {
         return jsonResponse({ success: false, message: "用户不存在" }, 404);
       }
 
-      users[index].password = newPassword;
+      users[index].password = bcrypt.hashSync(newPassword, 10);
       await writeUsers(env.USERS_KV, users);
       await env.USERS_KV.delete(`token:${token}`);
 

@@ -99,7 +99,7 @@ export default function About() {
             <Mail className="h-4 w-4" /> imloyo@qq.com
           </a>
           <a
-            href="https://github.com"
+            href="https://github.com/imhaikun"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-md blog-small no-underline transition-colors hover:text-primary hover:border-primary/50"

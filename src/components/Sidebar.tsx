@@ -74,7 +74,7 @@ export default function Sidebar() {
         >
           Imloyo
         </span>
-        <span className="blog-caption">写代码，也写生活</span>
+        <span className="blog-caption">爱NAS，也爱生活</span>
       </div>
 
       {/* 搜索 */}

@@ -30,3 +30,4 @@ dist-ssr
 server/db/*.json
 !server/db/users.example.json
 .wrangler/
+wrangler.toml

@@ -1,5 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
-import { Moon, Sun, Monitor, ChevronDown } from "lucide-react";
+import { Moon, Sun, Monitor, ChevronDown, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
@@ -24,6 +24,7 @@ export default function Header() {
   const { mode, isDark, toggleMode, setMode } = useTheme();
   const { settings, loaded, loadSettings } = useSiteSettings();
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   if (!loaded) {
     void loadSettings();
@@ -31,12 +32,12 @@ export default function Header() {
 
   const getCurrentIcon = () => {
     if (mode === "auto") return Monitor;
-    return isDark ? Sun : Moon;
+    return isDark ? Moon : Sun;
   };
 
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-30">
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link
           to="/"
           className="flex items-center gap-3 no-underline transition-opacity hover:opacity-80"
@@ -67,7 +68,7 @@ export default function Header() {
           </div>
         </Link>
 
-        <nav className="flex items-center gap-5 sm:gap-8">
+        <nav className="hidden md:flex items-center gap-5 sm:gap-8">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -135,7 +136,64 @@ export default function Header() {
             )}
           </div>
         </nav>
+
+        <div className="flex items-center gap-2 md:hidden">
+          <button
+            type="button"
+            onClick={() => toggleMode()}
+            aria-label="切换主题"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground hover:border-primary/50 active:scale-95"
+          >
+            {getCurrentIcon() === Monitor ? (
+              <Monitor className="h-4 w-4" />
+            ) : isDark ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            aria-label="菜单"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground hover:border-primary/50 active:scale-95"
+          >
+            {showMobileMenu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
+
+      {showMobileMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+            onClick={() => setShowMobileMenu(false)}
+          />
+          <div className="fixed inset-x-0 top-16 z-50 bg-background border-b border-border shadow-lg">
+            <nav className="flex flex-col py-2">
+              {navItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={() => setShowMobileMenu(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "px-6 py-3 text-base transition-colors no-underline",
+                      isActive
+                        ? "text-primary font-medium bg-primary/5"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                    )
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        </>
+      )}
     </header>
   );
 }

@@ -15,6 +15,7 @@
     "@types/highlight.js": "^9.12.4",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
     "highlight.js": "^11.11.1",
     "lucide-react": "^0.511.0",
     "react": "^18.3.1",
