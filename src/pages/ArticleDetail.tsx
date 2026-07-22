@@ -6,6 +6,7 @@ import { usePosts } from "@/hooks/usePosts";
 import { useTheme } from "@/hooks/useTheme";
 import TableOfContents from "@/components/TableOfContents";
 import { addHeadingIds } from "@/utils/headingIds";
+import { markdownToHtml } from "@/utils/markdownToHtml";
 
 import githubLightCss from "highlight.js/styles/github.css?raw";
 import githubDarkCss from "highlight.js/styles/github-dark.css?raw";
@@ -381,7 +382,7 @@ export default function ArticleDetail() {
         <div className="flex-1">
           <div
             className="prose-editorial"
-            dangerouslySetInnerHTML={{ __html: addHeadingIds(post.content) }}
+            dangerouslySetInnerHTML={{ __html: addHeadingIds(markdownToHtml(post.content)) }}
             ref={contentRef}
           />
         </div>
