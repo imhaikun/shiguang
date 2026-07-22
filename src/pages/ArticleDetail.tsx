@@ -78,6 +78,7 @@ export default function ArticleDetail() {
       import("highlight.js/lib/languages/markdown"),
       import("highlight.js/lib/languages/yaml"),
     ]).then(([main, python, javascript, typescript, bash, json, sql, go, rust, java, xml, css, markdown, yaml]) => {
+      console.log("processCodeBlocks: hljs loaded successfully");
       const hljs = main.default;
       hljs.registerLanguage("python", python.default);
       hljs.registerLanguage("javascript", javascript.default);
@@ -93,11 +94,18 @@ export default function ArticleDetail() {
       hljs.registerLanguage("yaml", yaml.default);
       hljs.registerLanguage("markdown", markdown.default);
 
+      console.log("processCodeBlocks: processing pres count:", pres.length);
       pres.forEach((pre) => {
         const codeEl = pre.querySelector("code");
-        if (!codeEl) return;
+        if (!codeEl) {
+          console.log("processCodeBlocks: pre has no code element");
+          return;
+        }
 
-        if (pre.parentElement?.classList.contains("code-block-container")) return;
+        if (pre.parentElement?.classList.contains("code-block-container")) {
+          console.log("processCodeBlocks: pre already in code-block-container");
+          return;
+        }
 
         const lang = (codeEl as HTMLElement).getAttribute("data-language") || "plaintext";
         const rawCode = codeEl.textContent || "";
