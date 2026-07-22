@@ -351,16 +351,18 @@ export default function ArticleDetail() {
   useEffect(() => {
     if (contentRef.current && post) {
       const el = contentRef.current;
-      console.log("ArticleDetail: post.content length:", post.content.length);
-      console.log("ArticleDetail: post.content first 200 chars:", post.content.substring(0, 200));
-      console.log("ArticleDetail: contentRef.current has content:", el.innerHTML.length > 0);
-      console.log("ArticleDetail: pre count before processing:", el.querySelectorAll("pre").length);
-      const timer = setTimeout(() => {
-        console.log("ArticleDetail: processing after timeout, pre count:", el.querySelectorAll("pre").length);
-        processArticleImages(el);
-        processCodeBlocks(el);
-      }, 100);
-      return () => clearTimeout(timer);
+      const checkAndProcess = () => {
+        const preCount = el.querySelectorAll("pre").length;
+        console.log("ArticleDetail: checking pre count:", preCount);
+        if (preCount > 0) {
+          processArticleImages(el);
+          processCodeBlocks(el);
+        } else if (el.innerHTML.length > 0) {
+          console.log("ArticleDetail: no pre found, retrying...");
+          setTimeout(checkAndProcess, 100);
+        }
+      };
+      checkAndProcess();
     }
   }, [post, processArticleImages, processCodeBlocks]);
 

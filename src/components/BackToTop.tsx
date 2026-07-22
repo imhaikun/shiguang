@@ -22,7 +22,7 @@ export default function BackToTop() {
       onClick={scrollToTop}
       className="fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
       style={{
-        background: "var(--blog-primary)",
+        background: "#10b981",
         color: "#ffffff",
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? "translateY(0)" : "translateY(20px)",
