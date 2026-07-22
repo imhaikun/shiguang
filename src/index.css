@@ -166,7 +166,7 @@
 .prose-editorial li {
   margin-top: 0.5em;
 }
-.prose-editorial code {
+.prose-editorial code:not(pre code) {
   font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.875em;
   background: var(--blog-border);
@@ -205,6 +205,62 @@
   margin: 2em 0;
 }
 
+.prose-editorial img {
+  max-width: 100%;
+  max-height: 60vh;
+  width: auto;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 文章图片网格 */
+.article-image-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 1.5em 0;
+}
+.article-image-gallery .gallery-item {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 8px;
+  cursor: zoom-in;
+}
+.article-image-gallery .gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.article-image-gallery .gallery-item:hover img {
+  transform: scale(1.05);
+}
+.article-image-gallery .gallery-item .gallery-more {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .article-image-gallery {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  .article-image-gallery .gallery-item {
+    border-radius: 6px;
+  }
+}
+
 /* ── 工具类 ── */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -221,4 +277,108 @@
 .arrow {
   display: inline-block;
   transition: transform 0.2s ease;
+}
+
+/* ── GitHub 风格代码块 ── */
+.code-block-container {
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 1.5rem 0;
+  background: var(--blog-card);
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  background: var(--blog-card);
+  border-bottom: 1px solid var(--blog-border);
+}
+
+.code-block-lang {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--blog-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.code-block-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--blog-border);
+  background: transparent;
+  color: var(--blog-muted-foreground);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: "Inter", "Noto Sans SC", sans-serif;
+}
+
+.code-block-copy:hover {
+  background: var(--blog-border);
+  color: var(--blog-foreground);
+}
+
+.code-block-copy.copied {
+  color: var(--blog-primary);
+  border-color: var(--blog-primary);
+}
+
+.code-block-body {
+  display: flex;
+  background: var(--blog-background);
+  overflow-x: auto;
+}
+
+.code-block-line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0.75rem;
+  border-right: 1px solid var(--blog-border);
+  background: var(--blog-card);
+  user-select: none;
+  text-align: right;
+  min-width: 2.5rem;
+  flex-shrink: 0;
+}
+
+.code-block-line-number {
+  font-size: 0.875rem;
+  line-height: 24px;
+  color: var(--blog-muted-foreground);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  opacity: 0.6;
+}
+
+.code-block-body pre {
+  flex: 1;
+  margin: 0;
+  padding: 1rem;
+  overflow-x: auto;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  white-space: pre;
+}
+
+.code-block-body pre code {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.875rem;
+  line-height: 24px;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+}
+
+/* 确保 hljs 高亮颜色生效 */
+.code-block-body pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  background: transparent;
 }
