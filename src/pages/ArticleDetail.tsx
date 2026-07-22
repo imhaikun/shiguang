@@ -59,8 +59,74 @@ export default function ArticleDetail() {
     container.querySelectorAll(".code-lang-selector").forEach((s) => s.remove());
 
     const pres = container.querySelectorAll("pre");
-    console.log("processCodeBlocks: found pre elements count:", pres.length);
     if (pres.length === 0) return;
+
+    pres.forEach((pre) => {
+      const codeEl = pre.querySelector("code");
+      if (!codeEl) return;
+
+      if (pre.parentElement?.classList.contains("code-block-container")) return;
+
+      const lang = (codeEl as HTMLElement).getAttribute("data-language") || "plaintext";
+      const rawCode = codeEl.textContent || "";
+
+      const blockContainer = document.createElement("div");
+      blockContainer.className = "code-block-container";
+
+      const header = document.createElement("div");
+      header.className = "code-block-header";
+
+      const langSpan = document.createElement("span");
+      langSpan.className = "code-block-lang";
+      langSpan.textContent = lang || "plaintext";
+
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "code-block-copy";
+      copyBtn.type = "button";
+      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span>`;
+
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(rawCode).then(() => {
+          copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>已复制</span>`;
+          copyBtn.classList.add("copied");
+          setTimeout(() => {
+            copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span>`;
+            copyBtn.classList.remove("copied");
+          }, 2000);
+        });
+      });
+
+      header.appendChild(langSpan);
+      header.appendChild(copyBtn);
+
+      const body = document.createElement("div");
+      body.className = "code-block-body";
+
+      const lines = rawCode.split("\n");
+      const lineNumbers = document.createElement("div");
+      lineNumbers.className = "code-block-line-numbers";
+      lines.forEach((_, i) => {
+        const num = document.createElement("span");
+        num.className = "code-block-line-number";
+        num.textContent = String(i + 1);
+        lineNumbers.appendChild(num);
+      });
+
+      const newPre = document.createElement("pre");
+      const newCode = document.createElement("code");
+
+      newCode.textContent = rawCode;
+      newCode.className = `hljs language-${lang}`;
+
+      newPre.appendChild(newCode);
+      body.appendChild(lineNumbers);
+      body.appendChild(newPre);
+
+      blockContainer.appendChild(header);
+      blockContainer.appendChild(body);
+
+      pre.parentNode?.replaceChild(blockContainer, pre);
+    });
 
     Promise.all([
       import("highlight.js"),
@@ -78,7 +144,6 @@ export default function ArticleDetail() {
       import("highlight.js/lib/languages/markdown"),
       import("highlight.js/lib/languages/yaml"),
     ]).then(([main, python, javascript, typescript, bash, json, sql, go, rust, java, xml, css, markdown, yaml]) => {
-      console.log("processCodeBlocks: hljs loaded successfully");
       const hljs = main.default;
       hljs.registerLanguage("python", python.default);
       hljs.registerLanguage("javascript", javascript.default);
@@ -94,89 +159,17 @@ export default function ArticleDetail() {
       hljs.registerLanguage("yaml", yaml.default);
       hljs.registerLanguage("markdown", markdown.default);
 
-      console.log("processCodeBlocks: processing pres count:", pres.length);
-      pres.forEach((pre) => {
-        const codeEl = pre.querySelector("code");
-        if (!codeEl) {
-          console.log("processCodeBlocks: pre has no code element");
-          return;
-        }
-
-        if (pre.parentElement?.classList.contains("code-block-container")) {
-          console.log("processCodeBlocks: pre already in code-block-container");
-          return;
-        }
-
-        const lang = (codeEl as HTMLElement).getAttribute("data-language") || "plaintext";
+      container.querySelectorAll(".code-block-body pre code").forEach((codeEl) => {
+        const lang = codeEl.getAttribute("class")?.replace("hljs language-", "") || "plaintext";
         const rawCode = codeEl.textContent || "";
-
-        const blockContainer = document.createElement("div");
-        blockContainer.className = "code-block-container";
-
-        const header = document.createElement("div");
-        header.className = "code-block-header";
-
-        const langSpan = document.createElement("span");
-        langSpan.className = "code-block-lang";
-        langSpan.textContent = lang || "plaintext";
-
-        const copyBtn = document.createElement("button");
-        copyBtn.className = "code-block-copy";
-        copyBtn.type = "button";
-        copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span>`;
-
-        copyBtn.addEventListener("click", () => {
-          navigator.clipboard.writeText(rawCode).then(() => {
-            copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>已复制</span>`;
-            copyBtn.classList.add("copied");
-            setTimeout(() => {
-              copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span>`;
-              copyBtn.classList.remove("copied");
-            }, 2000);
-          });
-        });
-
-        header.appendChild(langSpan);
-        header.appendChild(copyBtn);
-
-        const body = document.createElement("div");
-        body.className = "code-block-body";
-
-        const lines = rawCode.split("\n");
-        const lineNumbers = document.createElement("div");
-        lineNumbers.className = "code-block-line-numbers";
-        lines.forEach((_, i) => {
-          const num = document.createElement("span");
-          num.className = "code-block-line-number";
-          num.textContent = String(i + 1);
-          lineNumbers.appendChild(num);
-        });
-
-        const newPre = document.createElement("pre");
-        const newCode = document.createElement("code");
-
-        if (lang && lang !== "plaintext") {
+        if (lang && lang !== "plaintext" && lang !== "hljs") {
           try {
             const result = hljs.highlight(rawCode, { language: lang });
-            newCode.innerHTML = result.value;
-            newCode.className = `hljs language-${lang}`;
+            codeEl.innerHTML = result.value;
           } catch {
-            newCode.textContent = rawCode;
-            newCode.className = "hljs";
+            codeEl.textContent = rawCode;
           }
-        } else {
-          newCode.textContent = rawCode;
-          newCode.className = "hljs";
         }
-
-        newPre.appendChild(newCode);
-        body.appendChild(lineNumbers);
-        body.appendChild(newPre);
-
-        blockContainer.appendChild(header);
-        blockContainer.appendChild(body);
-
-        pre.parentNode?.replaceChild(blockContainer, pre);
       });
     });
   }, []);
