@@ -60,7 +60,8 @@ function parseMarkdown(text: string): string {
     if (line.startsWith("```")) {
       if (inCodeBlock) {
         const language = codeLang || "plaintext";
-        html.push(`<pre><code data-language="${language}">${codeContent.join("\n")}</code></pre>`);
+        const escapedContent = codeContent.join("\n").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        html.push(`<pre><code data-language="${language}">${escapedContent}</code></pre>`);
         inCodeBlock = false;
         codeLang = "";
         codeContent = [];
@@ -113,10 +114,23 @@ function parseMarkdown(text: string): string {
 function htmlToMarkdown(html: string): string {
   let md = html;
 
-  md = md.replace(/<pre><code data-language="([^"]*)">([\s\S]*?)<\/code><\/pre>/g, (_, lang, code) => {
+  // 先移除代码语言选择器
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = md;
+  tempDiv.querySelectorAll(".code-lang-selector").forEach((s) => s.remove());
+  tempDiv.querySelectorAll(".code-block-wrapper").forEach((wrapper) => {
+    const pre = wrapper.querySelector("pre");
+    if (pre) {
+      wrapper.parentNode?.insertBefore(pre, wrapper);
+    }
+    wrapper.remove();
+  });
+  md = tempDiv.innerHTML;
+
+  md = md.replace(/<pre[^>]*><code data-language="([^"]*)">([\s\S]*?)<\/code><\/pre>/g, (_, lang, code) => {
     return "```" + (lang || "") + "\n" + code.trim() + "\n```";
   });
-  md = md.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (_, code) => {
+  md = md.replace(/<pre[^>]*><code>([\s\S]*?)<\/code><\/pre>/g, (_, code) => {
     return "```\n" + code.trim() + "\n```";
   });
 
@@ -221,8 +235,69 @@ export default function RichEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
   const [showCodeDropdown, setShowCodeDropdown] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("javascript");
+  const historyRef = useRef<{ stack: string[]; index: number }>({ stack: [""], index: 0 });
+  const isHistoryActionRef = useRef(false);
+  const switchTimestampRef = useRef(0);
+
+  const pushHistory = useCallback((text: string) => {
+    if (isHistoryActionRef.current) return;
+    const history = historyRef.current;
+    if (history.stack[history.index] === text) return;
+    history.stack = history.stack.slice(0, history.index + 1);
+    history.stack.push(text);
+    if (history.stack.length > 100) history.stack.shift();
+    history.index = history.stack.length - 1;
+  }, []);
+
+  const historyUndo = useCallback((): string | null => {
+    const history = historyRef.current;
+    if (history.index > 0) {
+      history.index--;
+      isHistoryActionRef.current = true;
+      const result = history.stack[history.index];
+      setTimeout(() => { isHistoryActionRef.current = false; }, 0);
+      return result;
+    }
+    return null;
+  }, []);
+
+  const historyRedo = useCallback((): string | null => {
+    const history = historyRef.current;
+    if (history.index < history.stack.length - 1) {
+      history.index++;
+      isHistoryActionRef.current = true;
+      const result = history.stack[history.index];
+      setTimeout(() => { isHistoryActionRef.current = false; }, 0);
+      return result;
+    }
+    return null;
+  }, []);
+
+  const updateActiveFormats = useCallback(() => {
+    if (mode !== "rich") return;
+    const formats = new Set<string>();
+    if (document.queryCommandState("bold")) formats.add("bold");
+    if (document.queryCommandState("italic")) formats.add("italic");
+    if (document.queryCommandState("strikeThrough")) formats.add("strikeThrough");
+    if (document.queryCommandState("insertUnorderedList")) formats.add("insertUnorderedList");
+    if (document.queryCommandState("insertOrderedList")) formats.add("insertOrderedList");
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : (container as HTMLElement);
+      if (element) {
+        if (element.closest("code") && !element.closest("pre")) formats.add("inlineCode");
+        if (element.closest("h1") || element.closest("h2") || element.closest("h3")) formats.add("h2");
+        if (element.closest("blockquote")) formats.add("blockquote");
+        if (element.closest("pre")) formats.add("pre");
+      }
+    }
+    setActiveFormats(formats);
+  }, [mode]);
 
   useEffect(() => {
     if (externalMode) {
@@ -231,35 +306,40 @@ export default function RichEditor({
   }, [externalMode]);
 
   useEffect(() => {
-    if (mode === "rich" && editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || "<p></p>";
-    }
-  }, [value, mode]);
-
-  useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (showCodeDropdown) {
-        const isInsideEditor = target.closest('[contenteditable="true"]');
-        const isCodeBlockButton = target.closest('[title="代码块"]');
-        const isDropdownItem = target.closest('.code-language-dropdown');
-        if (!isInsideEditor && !isCodeBlockButton && !isDropdownItem) {
-          setShowCodeDropdown(false);
-        }
+      if (showCodeDropdown && !target.closest('[title="代码块"]')) {
+        setShowCodeDropdown(false);
       }
     };
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showCodeDropdown]);
 
+  useEffect(() => {
+    if (mode !== "rich" || !editorRef.current) return;
+
+    // 刚切换模式时由 requestAnimationFrame 处理，跳过
+    if (Date.now() - switchTimestampRef.current < 100) return;
+
+    const expected = value || "<p></p>";
+    // 对比 cleaned HTML（去掉选择器后的），而非原始 innerHTML
+    // 这样选择器存在不会导致不必要的 DOM 覆盖
+    const currentClean = getCleanHTML(editorRef.current);
+    if (currentClean !== expected) {
+      editorRef.current.innerHTML = expected;
+      // 覆盖后重新添加语言选择器
+      editorRef.current.querySelectorAll("pre").forEach((pre) => {
+        addCodeLanguageSelector(pre as HTMLElement);
+      });
+    }
+  }, [value, mode]);
+
   const handleModeToggle = (newMode: "rich" | "markdown") => {
     if (newMode === mode) return;
     let newValue = value;
     if (newMode === "rich") {
       newValue = parseMarkdown(value);
-      if (editorRef.current) {
-        editorRef.current.innerHTML = newValue || "<p></p>";
-      }
     } else {
       if (editorRef.current) {
         newValue = htmlToMarkdown(editorRef.current.innerHTML);
@@ -267,9 +347,21 @@ export default function RichEditor({
         newValue = htmlToMarkdown(value);
       }
     }
+    switchTimestampRef.current = Date.now();
     onChange(newValue);
     setMode(newMode);
     onModeChange?.(newMode);
+
+    if (newMode === "rich") {
+      requestAnimationFrame(() => {
+        if (editorRef.current) {
+          editorRef.current.innerHTML = newValue || "<p></p>";
+          editorRef.current.querySelectorAll("pre").forEach((pre) => {
+            addCodeLanguageSelector(pre as HTMLElement);
+          });
+        }
+      });
+    }
   };
 
   const execCommand = useCallback((command: string, value?: string) => {
@@ -280,61 +372,135 @@ export default function RichEditor({
     }
 
     if (command === "createLink") {
-      const url = prompt("请输入链接地址：", "https://");
-      if (url) {
-        document.execCommand(command, false, url);
+      const selection = window.getSelection();
+      const hasLink = selection && selection.rangeCount > 0 &&
+        (selection.anchorNode as HTMLElement)?.parentElement?.closest("a");
+      if (hasLink) {
+        document.execCommand("unlink");
+      } else {
+        const url = prompt("请输入链接地址：", "https://");
+        if (url) {
+          document.execCommand(command, false, url);
+        }
       }
     } else if (command === "inlineCode") {
       const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
+      if (selection && selection.rangeCount > 0 && editorRef.current) {
         const range = selection.getRangeAt(0);
-        const selectedText = range.toString();
-        const code = document.createElement("code");
-        code.textContent = selectedText || "code";
-        range.deleteContents();
-        range.insertNode(code);
+        const container = range.commonAncestorContainer;
+        const element = container.nodeType === Node.TEXT_NODE
+          ? container.parentElement
+          : (container as HTMLElement);
+
+        const codeEl = element?.closest("code");
+        if (codeEl && !codeEl.closest("pre")) {
+          const parent = codeEl.parentNode;
+          while (codeEl.firstChild) {
+            parent?.insertBefore(codeEl.firstChild, codeEl);
+          }
+          parent?.removeChild(codeEl);
+        } else {
+          const selectedText = range.toString();
+          const code = document.createElement("code");
+          code.textContent = selectedText || "code";
+          range.deleteContents();
+          range.insertNode(code);
+        }
       }
     } else if (command === "formatBlock" && value === "pre") {
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0 && editorRef.current) {
         const range = selection.getRangeAt(0);
-        const selectedText = range.toString();
-        const pre = document.createElement("pre");
-        const code = document.createElement("code");
-        code.textContent = selectedText || "// 在此输入代码";
-        pre.appendChild(code);
-        range.deleteContents();
-        range.insertNode(pre);
-        range.collapse(false);
-        const emptyP = document.createElement("p");
-        emptyP.innerHTML = "<br>";
-        range.insertNode(emptyP);
-        // Move cursor back into the code block for immediate editing
-        const newRange = document.createRange();
-        newRange.selectNodeContents(code);
-        newRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
+        const container = range.commonAncestorContainer;
+        const element = container.nodeType === Node.TEXT_NODE
+          ? container.parentElement
+          : (container as HTMLElement);
+
+        let preEl = element?.closest("pre");
+        if (!preEl) {
+          const startNode = range.startContainer;
+          const endNode = range.endContainer;
+          const startEl = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : (startNode as HTMLElement);
+          const endEl = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : (endNode as HTMLElement);
+          preEl = startEl?.closest("pre") || endEl?.closest("pre");
+        }
+
+        if (preEl) {
+          const codeEl = preEl.querySelector("code");
+          const text = codeEl?.textContent || "";
+          const wrapper = preEl.parentElement;
+          const p = document.createElement("p");
+          p.textContent = text || " ";
+          if (wrapper && wrapper.classList.contains("code-block-wrapper")) {
+            wrapper.parentNode?.replaceChild(p, wrapper);
+          } else {
+            preEl.parentNode?.replaceChild(p, preEl);
+          }
+          const newRange = document.createRange();
+          newRange.selectNodeContents(p);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        } else {
+          const selectedText = range.toString();
+          const pre = document.createElement("pre");
+          const code = document.createElement("code");
+          code.textContent = selectedText || "// 在此输入代码";
+          pre.appendChild(code);
+          range.deleteContents();
+          range.insertNode(pre);
+          range.collapse(false);
+          const emptyP = document.createElement("p");
+          emptyP.innerHTML = "<br>";
+          range.insertNode(emptyP);
+          const newRange = document.createRange();
+          newRange.selectNodeContents(code);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+
+          setTimeout(() => {
+            addCodeLanguageSelector(pre);
+          }, 0);
+        }
+
+        const cleanHtml = getCleanHTML(editorRef.current);
+        onChange(cleanHtml);
+        updateActiveFormats();
       }
     } else if (command === "formatBlock" && value) {
-      document.execCommand(command, false, value);
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const element = container.nodeType === Node.TEXT_NODE
+          ? container.parentElement
+          : (container as HTMLElement);
+
+        let currentBlock = element;
+        while (currentBlock && currentBlock !== editorRef.current) {
+          if (/^H[1-6]|^P$|^BLOCKQUOTE$/.test(currentBlock.tagName)) break;
+          currentBlock = currentBlock.parentElement;
+        }
+
+        if (currentBlock && currentBlock.tagName.toLowerCase() === value.toLowerCase()) {
+          document.execCommand("formatBlock", false, "p");
+        } else {
+          document.execCommand(command, false, value);
+        }
+      }
     } else {
       document.execCommand(command, false, value);
     }
 
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+      const cleanHtml = getCleanHTML(editorRef.current);
+      onChange(cleanHtml);
+      setTimeout(updateActiveFormats, 0);
     }
-  }, [mode, onChange]);
+  }, [mode, onChange, updateActiveFormats]);
 
-  const handleImageUpload = async () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const doUploadImage = async (file: File) => {
     setUploading(true);
     try {
       const formData = new FormData();
@@ -353,8 +519,25 @@ export default function RichEditor({
             onChange(editorRef.current.innerHTML);
           }
         } else {
-          const imgMarkdown = `![](${result.url})`;
-          onChange(value + "\n" + imgMarkdown + "\n");
+          const textarea = textareaRef.current;
+          if (textarea) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const before = value.substring(0, start);
+            const after = value.substring(end);
+            const imgMarkdown = `![](${result.url})\n`;
+            const newText = before + imgMarkdown + after;
+            onChange(newText);
+            setTimeout(() => {
+              textarea.focus();
+              const newPos = start + imgMarkdown.length;
+              textarea.selectionStart = newPos;
+              textarea.selectionEnd = newPos;
+            }, 0);
+          } else {
+            const imgMarkdown = `![](${result.url})\n`;
+            onChange(value + imgMarkdown);
+          }
         }
       } else {
         alert(result.message || "上传失败");
@@ -363,19 +546,145 @@ export default function RichEditor({
       alert("上传失败，请稍后重试");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+    }
+  };
+
+  const handleImageUpload = async () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await doUploadImage(file);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await doUploadImage(file);
+        }
+        return;
       }
     }
   };
 
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type.startsWith("image/")) {
+        await doUploadImage(file);
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const getCleanHTML = (container: HTMLElement): string => {
+    const clone = container.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll(".code-lang-selector").forEach((s) => s.remove());
+    return clone.innerHTML;
+  };
+
+  const addCodeLanguageSelector = (pre: HTMLElement) => {
+    if (pre.querySelector(".code-lang-selector")) return;
+
+    const selector = document.createElement("select");
+    selector.className = "code-lang-selector";
+    selector.contentEditable = "false";
+    selector.style.cssText = `
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      font-size: 11px;
+      padding: 2px 18px 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--blog-border);
+      background: var(--blog-card);
+      color: var(--blog-muted-foreground);
+      cursor: pointer;
+      outline: none;
+      z-index: 2;
+      appearance: auto;
+    `;
+
+    const currentLang = pre.querySelector("code")?.getAttribute("data-language") || "";
+
+    const langOptions = [
+      { value: "", label: "选择语言" },
+      ...codeLanguages,
+    ];
+
+    langOptions.forEach((lang) => {
+      const option = document.createElement("option");
+      option.value = lang.value;
+      option.textContent = lang.label;
+      if (lang.value === currentLang) option.selected = true;
+      selector.appendChild(option);
+    });
+
+    selector.addEventListener("change", (e) => {
+      const target = e.target as HTMLSelectElement;
+      const lang = target.value;
+      const code = pre.querySelector("code");
+      if (!code) return;
+
+      code.setAttribute("data-language", lang);
+      if (editorRef.current) {
+        const cleanHtml = getCleanHTML(editorRef.current);
+        onChange(cleanHtml);
+      }
+    });
+
+    pre.style.position = "relative";
+    pre.appendChild(selector);
+  };
+
   const handleRichInput = () => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+      const cleanHtml = getCleanHTML(editorRef.current);
+      onChange(cleanHtml);
+      updateActiveFormats();
     }
   };
 
   const handleRichKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+      e.preventDefault();
+      document.execCommand("undo");
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+      }
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
+      e.preventDefault();
+      document.execCommand("redo");
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+      }
+      return;
+    }
+
     if (e.key !== "Enter") return;
 
     const selection = window.getSelection();
@@ -417,7 +726,36 @@ export default function RichEditor({
   };
 
   const handleMarkdownChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange(e.target.value);
+    const newValue = e.target.value;
+    pushHistory(newValue);
+    onChange(newValue);
+  };
+
+  const handleMarkdownKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+      e.preventDefault();
+      const prev = historyUndo();
+      if (prev !== null) {
+        onChange(prev);
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.value = prev;
+        }
+      }
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
+      e.preventDefault();
+      const next = historyRedo();
+      if (next !== null) {
+        onChange(next);
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.value = next;
+        }
+      }
+      return;
+    }
   };
 
   const insertMarkdownFormat = (prefix: string, suffix = "") => {
@@ -431,6 +769,7 @@ export default function RichEditor({
     const after = value.substring(end);
 
     const newText = before + prefix + selectedText + suffix + after;
+    pushHistory(newText);
     onChange(newText);
 
     setTimeout(() => {
@@ -454,12 +793,12 @@ export default function RichEditor({
       const codeBlock = `\n\`\`\`${language}\n${selectedText || "// 在此输入代码"}
 \`\`\`\n`;
       const newText = before + codeBlock + after;
+      pushHistory(newText);
       onChange(newText);
-      setShowCodeDropdown(false);
 
       setTimeout(() => {
         textarea.focus();
-        const codeStart = start + 4 + language.length + 1;
+        const codeStart = start + 4 + language.length;
         textarea.selectionStart = codeStart;
         textarea.selectionEnd = codeStart + (selectedText.length || 14);
       }, 0);
@@ -489,17 +828,12 @@ export default function RichEditor({
           selection.addRange(newRange);
         }, 0);
       }
-      setShowCodeDropdown(false);
     }
   };
 
   const toolbarClick = (btn: ToolbarButton) => {
     if (mode === "rich") {
-      if (btn.command === "formatBlock" && btn.value === "pre") {
-        setShowCodeDropdown(!showCodeDropdown);
-      } else {
-        execCommand(btn.command, btn.value);
-      }
+      execCommand(btn.command, btn.value);
     } else {
       const textarea = textareaRef.current;
       if (textarea) {
@@ -520,7 +854,7 @@ export default function RichEditor({
           break;
         case "formatBlock":
           if (btn.value === "pre") {
-            setShowCodeDropdown(!showCodeDropdown);
+            setShowCodeDropdown(true);
           } else if (btn.value === "h2") {
             insertMarkdownFormat("\n## ");
           } else if (btn.value === "blockquote") {
@@ -549,6 +883,7 @@ export default function RichEditor({
         <div className="flex items-center gap-1 relative">
           {basicButtons.map((btn) => {
             const Icon = btn.icon;
+            const isActive = activeFormats.has(btn.command) || (btn.value ? activeFormats.has(btn.value) : false);
             if (btn.command === "formatBlock" && btn.value === "pre") {
               return (
                 <div key={btn.title} className="relative">
@@ -556,16 +891,17 @@ export default function RichEditor({
                     type="button"
                     onClick={() => toolbarClick(btn)}
                     className={cn(
-                      "p-2 rounded-md transition-colors hover:bg-primary/10 hover:text-primary"
+                      "p-2 rounded-md transition-colors",
+                      isActive ? "bg-primary/15 text-primary" : "hover:bg-primary/10 hover:text-primary"
                     )}
-                    style={{ color: "var(--blog-foreground)" }}
+                    style={isActive ? {} : { color: "var(--blog-foreground)" }}
                     title={btn.title}
                   >
                     <Icon className="h-5 w-5" />
                   </button>
                   {showCodeDropdown && (
                     <div
-                      className="code-language-dropdown absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-50 min-w-[150px]"
+                      className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-50 min-w-[150px]"
                       style={{ borderColor: "var(--blog-border)" }}
                     >
                       {codeLanguages.map((lang) => (
@@ -590,9 +926,10 @@ export default function RichEditor({
                 type="button"
                 onClick={() => toolbarClick(btn)}
                 className={cn(
-                  "p-2 rounded-md transition-colors hover:bg-primary/10 hover:text-primary"
+                  "p-2 rounded-md transition-colors",
+                  isActive ? "bg-primary/15 text-primary" : "hover:bg-primary/10 hover:text-primary"
                 )}
-                style={{ color: "var(--blog-foreground)" }}
+                style={isActive ? {} : { color: "var(--blog-foreground)" }}
                 title={btn.title}
               >
                 <Icon className="h-5 w-5" />
@@ -653,6 +990,11 @@ export default function RichEditor({
           contentEditable
           onInput={handleRichInput}
           onKeyDown={handleRichKeyDown}
+          onKeyUp={updateActiveFormats}
+          onMouseUp={updateActiveFormats}
+          onPaste={handlePaste}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
           className="prose-editorial min-h-[400px] p-4 focus:outline-none text-sm"
           style={{ background: "var(--blog-background)", color: "var(--blog-foreground)" }}
           data-placeholder={placeholder}
@@ -663,6 +1005,10 @@ export default function RichEditor({
           ref={textareaRef}
           value={value}
           onChange={handleMarkdownChange}
+          onKeyDown={handleMarkdownKeyDown}
+          onPaste={handlePaste}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
           placeholder={placeholder}
           className="w-full min-h-[400px] p-4 text-sm font-mono focus:outline-none resize-none"
           style={{
