@@ -47,6 +47,17 @@ export default function ArticleDetail() {
   }, [previewImage, closePreview]);
 
   const processCodeBlocks = useCallback((container: HTMLElement) => {
+    console.log("processCodeBlocks called, container:", !!container);
+
+    // Clean up any existing code-block-containers first (avoid double-processing)
+    container.querySelectorAll(".code-block-container").forEach((existing) => {
+      const pre = existing.querySelector("pre");
+      if (pre && pre.parentElement) {
+        existing.parentNode?.insertBefore(pre, existing);
+      }
+      existing.remove();
+    });
+
     container.querySelectorAll(".code-block-wrapper").forEach((wrapper) => {
       const selector = wrapper.querySelector(".code-lang-selector");
       if (selector) selector.remove();
@@ -60,26 +71,56 @@ export default function ArticleDetail() {
     container.querySelectorAll(".code-lang-selector").forEach((s) => s.remove());
 
     const pres = container.querySelectorAll("pre");
+    console.log("Found pre elements:", pres.length);
     if (pres.length === 0) return;
 
     pres.forEach((pre) => {
       const codeEl = pre.querySelector("code");
-      if (!codeEl) return;
+      if (!codeEl) {
+        console.log("Pre has no code element:", pre.textContent?.substring(0, 50));
+        return;
+      }
 
-      if (pre.parentElement?.classList.contains("code-block-container")) return;
+      if (pre.parentElement?.classList.contains("code-block-container")) {
+        console.log("Already in code-block-container, skipping");
+        return;
+      }
 
       const lang = (codeEl as HTMLElement).getAttribute("data-language") || "plaintext";
       const rawCode = codeEl.textContent || "";
+      const lineCount = rawCode.split("\n").length;
+      console.log("Processing code block, lang:", lang, "lines:", lineCount);
 
       const blockContainer = document.createElement("div");
       blockContainer.className = "code-block-container";
+      if (lineCount > 10) {
+        blockContainer.classList.add("collapsible");
+      }
 
       const header = document.createElement("div");
       header.className = "code-block-header";
 
       const langSpan = document.createElement("span");
       langSpan.className = "code-block-lang";
-      langSpan.textContent = lang || "plaintext";
+      langSpan.textContent = lang.toUpperCase() || "PLAINTEXT";
+
+      // Add collapse button for long code blocks
+      if (lineCount > 10) {
+        const collapseBtn = document.createElement("button");
+        collapseBtn.className = "code-block-collapse-btn";
+        collapseBtn.type = "button";
+        collapseBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg><span>折叠</span>`;
+        collapseBtn.addEventListener("click", () => {
+          const body = blockContainer.querySelector(".code-block-body");
+          if (body) {
+            const isCollapsed = body.classList.toggle("collapsed");
+            collapseBtn.innerHTML = isCollapsed
+              ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg><span>展开</span>`
+              : `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg><span>折叠</span>`;
+          }
+        });
+        header.appendChild(collapseBtn);
+      }
 
       const copyBtn = document.createElement("button");
       copyBtn.className = "code-block-copy";
@@ -126,6 +167,7 @@ export default function ArticleDetail() {
       blockContainer.appendChild(header);
       blockContainer.appendChild(body);
 
+      console.log("Replacing pre with code-block-container");
       pre.parentNode?.replaceChild(blockContainer, pre);
     });
 
@@ -145,6 +187,7 @@ export default function ArticleDetail() {
       import("highlight.js/lib/languages/markdown"),
       import("highlight.js/lib/languages/yaml"),
     ]).then(([main, python, javascript, typescript, bash, json, sql, go, rust, java, xml, css, markdown, yaml]) => {
+      console.log("hljs loaded, applying syntax highlighting");
       const hljs = main.default;
       hljs.registerLanguage("python", python.default);
       hljs.registerLanguage("javascript", javascript.default);
@@ -172,6 +215,7 @@ export default function ArticleDetail() {
           }
         }
       });
+      console.log("Syntax highlighting applied");
     });
   }, []);
 
@@ -307,6 +351,8 @@ export default function ArticleDetail() {
   useEffect(() => {
     if (contentRef.current && post) {
       const el = contentRef.current;
+      console.log("ArticleDetail: post.content length:", post.content.length);
+      console.log("ArticleDetail: post.content first 200 chars:", post.content.substring(0, 200));
       console.log("ArticleDetail: contentRef.current has content:", el.innerHTML.length > 0);
       console.log("ArticleDetail: pre count before processing:", el.querySelectorAll("pre").length);
       const timer = setTimeout(() => {

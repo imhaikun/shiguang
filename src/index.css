@@ -279,7 +279,7 @@
   transition: transform 0.2s ease;
 }
 
-/* ── GitHub 风格代码块 ── */
+/* ── GitHub 风格代码块 ─ */
 .code-block-container {
   border-radius: 12px;
   overflow: hidden;
@@ -302,6 +302,26 @@
   color: var(--blog-muted-foreground);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.code-block-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--blog-border);
+  background: transparent;
+  color: var(--blog-muted-foreground);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: "Inter", "Noto Sans SC", sans-serif;
+}
+
+.code-block-collapse-btn:hover {
+  background: var(--blog-border);
+  color: var(--blog-foreground);
 }
 
 .code-block-copy {
@@ -333,6 +353,13 @@
   display: flex;
   background: var(--blog-background);
   overflow-x: auto;
+  max-height: none;
+  transition: max-height 0.3s ease;
+}
+
+.code-block-body.collapsed {
+  max-height: 240px;
+  overflow-y: hidden;
 }
 
 .code-block-line-numbers {
