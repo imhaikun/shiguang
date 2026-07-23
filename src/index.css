@@ -82,14 +82,20 @@
    基础样式
    ============================================================ */
 
-body {
+html,
+body,
+#root {
   background-color: var(--blog-background);
   color: var(--blog-foreground);
-  font-family: "Noto Serif SC", "Noto Sans SC", "Songti SC", Georgia, "Times New Roman", serif;
+  font-family: "Noto Serif SC", "Noto Sans SC", "Songti SC", Georgia, "Times New Roman", serif !important;
   font-size: var(--blog-font-size-base);
   line-height: var(--blog-line-height);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+*:not(pre):not(code):not(.code-line):not(.code-block-line-number):not(.hljs):not([class*="mono"]):not(kbd):not(samp) {
+  font-family: inherit;
 }
 
 /* ============================================================
