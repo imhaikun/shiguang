@@ -103,7 +103,7 @@ function escLine(l: string): string {
   return e === "" ? " " : e;
 }
 
-/** 渲染 .code-line 行 HTML。 */
+/** 渲染代码行 HTML（新布局：.code-row 包含行号 + 代码行）。 */
 function buildCodeLinesHtml(
   highlighter: Highlighter | null,
   rawLines: string[],
@@ -115,25 +115,19 @@ function buildCodeLinesHtml(
     if (highlighted) {
       const hlLines = splitHighlightedByLine(highlighted);
       return padLines(hlLines, rawLines.length)
-        .map((line) => `<span class="code-line">${line === "" ? " " : line}</span>`)
-        .join("\n");
+        .map(
+          (line, idx) =>
+            `<div class="code-row"><span class="code-block-line-number">${idx + 1}</span><span class="code-line">${line === "" ? " " : line}</span></div>`,
+        )
+        .join("");
     }
   }
-  return rawLines.map((l) => `<span class="code-line">${escLine(l)}</span>`).join("\n");
-}
-
-/** 造行号列。 */
-function buildLineNumbers(lineCount: number): HTMLDivElement {
-  const lineNumbers = document.createElement("div");
-  lineNumbers.className = "code-block-line-numbers";
-  lineNumbers.setAttribute("aria-hidden", "true");
-  for (let i = 1; i <= lineCount; i++) {
-    const n = document.createElement("span");
-    n.className = "code-block-line-number";
-    n.textContent = String(i);
-    lineNumbers.appendChild(n);
-  }
-  return lineNumbers;
+  return rawLines
+    .map(
+      (l, idx) =>
+        `<div class="code-row"><span class="code-block-line-number">${idx + 1}</span><span class="code-line">${escLine(l)}</span></div>`,
+    )
+    .join("");
 }
 
 /* ============================================================
@@ -206,14 +200,15 @@ function upgrade(pre: HTMLPreElement, highlighter: Highlighter | null): void {
   const body = document.createElement("div");
   body.className = "code-block-body";
 
+  const codeArea = document.createElement("div");
+  codeArea.className = "code-block-code-area";
+
   codeEl.innerHTML = buildCodeLinesHtml(highlighter, rawLines, lang);
   codeEl.classList.add("hljs");
   if (lang && lang !== "plaintext") codeEl.classList.add(`language-${lang}`);
-  pre.classList.add("hljs-pre");
+  pre.replaceWith(codeArea); // 用 codeArea 替换旧 pre
 
-  body.appendChild(buildLineNumbers(lineCount));
-  body.appendChild(pre);
-
+  body.appendChild(codeArea);
   container.appendChild(header);
   container.appendChild(body);
 
@@ -257,23 +252,17 @@ export function initCodeBlocks(highlighter?: Highlighter): () => void {
 
   // 2. 若高亮器可用，补高亮已存在但未高亮的代码块
   if (hl) {
-    document.querySelectorAll(".code-block-container pre > code").forEach((codeEl) => {
-      const c = codeEl as HTMLElement;
-      if (c.querySelector(".hljs-keyword, .hljs-string, .hljs-comment, .hljs-title")) return;
+    document
+      .querySelectorAll(".code-block-container .code-block-code-area code")
+      .forEach((codeEl) => {
+        const c = codeEl as HTMLElement;
+        if (c.querySelector(".hljs-keyword, .hljs-string, .hljs-comment, .hljs-title")) return;
 
-      const lang = detectLanguage(c);
-      const rawLines = extractRawLines(c);
-      const lineCount = rawLines.length;
+        const lang = detectLanguage(c);
+        const rawLines = extractRawLines(c);
 
-      c.innerHTML = buildCodeLinesHtml(hl, rawLines, lang);
-
-      // 行号列若与真实行数不符，重建
-      const container = c.closest(".code-block-container");
-      const numCol = container?.querySelector(".code-block-line-numbers");
-      if (numCol && numCol.children.length !== lineCount) {
-        numCol.replaceWith(buildLineNumbers(lineCount));
-      }
-    });
+        c.innerHTML = buildCodeLinesHtml(hl, rawLines, lang);
+      });
   }
 
   // 3. 事件委托：复制 + 折叠/展开
@@ -284,8 +273,12 @@ export function initCodeBlocks(highlighter?: Highlighter): () => void {
     const copyBtn = target.closest(".code-block-copy") as HTMLElement | null;
     if (copyBtn) {
       const container = copyBtn.closest(".code-block-container");
-      const codeEl = container?.querySelector("pre > code");
-      const text = normalizeNewlines(codeEl?.textContent ?? "");
+      // 从 .code-line 收集代码文本，每行用 \n 连接
+      const lines: string[] = [];
+      container?.querySelectorAll(".code-line").forEach((el) => {
+        lines.push((el as HTMLElement).textContent ?? "");
+      });
+      const text = normalizeNewlines(lines.join("\n"));
       navigator.clipboard.writeText(text).then(() => {
         copyBtn.classList.add("copied");
         const label = copyBtn.querySelector(".copy-text");

@@ -32,6 +32,17 @@ const escapeHtml = (s: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+/** 把任意形态的换行归一成真换行 0x0A。 */
+function normalizeNewlines(s: string): string {
+  return s
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+}
+
 /**
  * 行内格式管道：
  * 1. 先提取 `行内代码`（转义后保护起来，不参与后续格式化）
@@ -103,18 +114,21 @@ function renderCodeBlock(
 ): string {
   const collapseAfter = options.collapseAfter ?? DEFAULT_COLLAPSE_AFTER;
 
-  const highlighted = options.highlighter?.(rawCode, language);
+  // ★ 关键：先把字面量 \n 归一为真换行
+  const normalizedCode = normalizeNewlines(rawCode);
+
+  const highlighted = options.highlighter?.(normalizedCode, language);
   const lines = highlighted
     ? splitHighlightedByLine(highlighted)
-    : rawCode.split("\n").map(escapeHtml);
+    : normalizedCode.split("\n").map(escapeHtml);
 
-  const lineNumbers = lines
-    .map((_, idx) => `<span class="code-block-line-number">${idx + 1}</span>`)
+  // ★ 逐行布局：每行一个 .code-row，行号 + 代码行绑定，折行时自然对齐
+  const codeRows = lines
+    .map(
+      (line, idx) =>
+        `<div class="code-row"><span class="code-block-line-number">${idx + 1}</span><span class="code-line">${line === "" ? " " : line}</span></div>`,
+    )
     .join("");
-
-  const codeLines = lines
-    .map((line) => `<span class="code-line">${line}</span>`)
-    .join("\n");
 
   const isCollapsed = lines.length > collapseAfter;
 
@@ -129,8 +143,7 @@ function renderCodeBlock(
       `</button>`,
     `</div>`,
     `<div class="code-block-body${isCollapsed ? " collapsed" : ""}">`,
-    `<div class="code-block-line-numbers" aria-hidden="true">${lineNumbers}</div>`,
-    `<pre><code class="language-${escapeHtml(language)}">${codeLines}</code></pre>`,
+    `<div class="code-block-code-area"><code class="language-${escapeHtml(language)} hljs">${codeRows}</code></div>`,
     `</div>`,
     isCollapsed
       ? `<button type="button" class="code-block-expand" aria-label="展开代码块">` +
