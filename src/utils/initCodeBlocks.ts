@@ -240,13 +240,11 @@ function upgrade(pre: HTMLPreElement, highlighter: Highlighter | null): void {
 export function initCodeBlocks(highlighter?: Highlighter): () => void {
   const hl: Highlighter | null = highlighter ?? null;
 
-  // 1. 同步升级裸 pre（编辑器 HTML 透传的内容）
-  const targets = document.querySelectorAll(
-    ".prose-editorial pre > code[data-language], .prose-editorial pre > code[class*='language-']",
-  );
+  // 1. 同步升级裸 pre（编辑器 HTML 透传的内容，包括无语言属性的代码块）
+  const targets = document.querySelectorAll(".prose-editorial pre > code");
   targets.forEach((codeEl) => {
     const pre = codeEl.parentElement as HTMLPreElement | null;
-    if (!pre || pre.closest(".code-block-container")) return; // 幂等
+    if (!pre || pre.closest(".code-block-container")) return;
     upgrade(pre, hl);
   });
 
