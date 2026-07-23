@@ -581,6 +581,7 @@ export default function PostForm() {
                   dangerouslySetInnerHTML={{ __html: content }}
                   ref={(el) => {
                     if (el) {
+                      el.querySelectorAll(".code-lang-selector").forEach((s) => s.remove());
                       const images = el.querySelectorAll("img");
                       images.forEach((img) => {
                         img.style.cursor = "zoom-in";

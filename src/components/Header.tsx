@@ -42,28 +42,22 @@ export default function Header() {
           to="/"
           className="flex items-center gap-3 no-underline transition-opacity hover:opacity-80"
         >
-          <svg
-            className="h-8 w-10 shrink-0"
-            viewBox="0 0 24 24"
-            fill="none"
-            style={{ color: "var(--blog-primary)" }}
-          >
-            <rect x="2" y="2" width="20" height="18" rx="5" stroke="currentColor" strokeWidth="2"/>
-            <line x1="7" y1="20" x2="7" y2="24" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            <line x1="17" y1="20" x2="17" y2="24" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            <line x1="8" y1="5" x2="8" y2="17" stroke="currentColor" strokeWidth="1.5"/>
-            <line x1="13" y1="5" x2="13" y2="17" stroke="currentColor" strokeWidth="1.5"/>
-            <line x1="18" y1="5" x2="18" y2="17" stroke="currentColor" strokeWidth="1.5"/>
-            <circle cx="5" cy="15" r="1.5" fill="currentColor"/>
-            <circle cx="10.5" cy="7" r="1.5" fill="currentColor"/>
-            <circle cx="15.5" cy="7" r="1.5" fill="currentColor"/>
-          </svg>
-          <div className="flex flex-col justify-center">
+          <div className="h-12 w-12 shrink-0">
+            <svg viewBox="0 0 64 64" className="h-full w-full">
+              <rect x="8" y="12" width="48" height="44" rx="14" fill="currentColor" style={{ color: isDark ? "#34d399" : "#0F766E" }}/>
+              <rect x="16" y="22" width="32" height="6" rx="3" fill="#ffffff"/>
+              <rect x="16" y="32" width="32" height="6" rx="3" fill="#ffffff"/>
+              <rect x="16" y="42" width="32" height="6" rx="3" fill="#ffffff"/>
+              <path d="M40 10 Q48 2 56 10" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" style={{ color: isDark ? "#34d399" : "#0F766E" }}/>
+              <path d="M42 14 Q48 6 54 14" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" style={{ color: isDark ? "#34d399" : "#0F766E" }}/>
+            </svg>
+          </div>
+          <div className="flex flex-col justify-center items-center">
             <span className="font-display text-xl font-semibold tracking-tight leading-tight" style={{ color: "var(--blog-foreground)", letterSpacing: "0.05em" }}>
               那斯小棧
             </span>
-            <span className="text-[10px] font-medium tracking-[0.2em] uppercase" style={{ color: "var(--blog-muted)" }}>
-              CODE & STORAGE
+            <span className="text-[11px] font-medium tracking-[0.2em] uppercase" style={{ color: "var(--blog-muted)" }}>
+              NAS IS LIFE
             </span>
           </div>
         </Link>

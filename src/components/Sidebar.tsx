@@ -28,24 +28,32 @@ export default function Sidebar() {
     return { stats, maxCount };
   }, [tags, getPostsByTag]);
 
-  const getTagStyle = (tag: string) => {
-    const count = tagStats.stats[tag] || 0;
-    const ratio = count / tagStats.maxCount;
-    let textColor: string;
-    
-    if (ratio >= 0.6) {
-      textColor = "#064e3b";
-    } else if (ratio >= 0.4) {
-      textColor = "#059669";
-    } else if (ratio >= 0.2) {
-      textColor = "#059669";
-    } else {
-      textColor = "#0d9488";
-    }
+  const tagColorPalette = [
+    { text: "#dc2626", bg: "rgba(220,38,38,0.08)", border: "rgba(220,38,38,0.15)" },
+    { text: "#ea580c", bg: "rgba(234,88,12,0.08)", border: "rgba(234,88,12,0.15)" },
+    { text: "#ca8a04", bg: "rgba(202,138,4,0.08)", border: "rgba(202,138,4,0.15)" },
+    { text: "#65a30d", bg: "rgba(101,163,13,0.08)", border: "rgba(101,163,13,0.15)" },
+    { text: "#059669", bg: "rgba(5,150,105,0.08)", border: "rgba(5,150,105,0.15)" },
+    { text: "#0d9488", bg: "rgba(13,148,136,0.08)", border: "rgba(13,148,136,0.15)" },
+    { text: "#0284c7", bg: "rgba(2,132,199,0.08)", border: "rgba(2,132,199,0.15)" },
+    { text: "#2563eb", bg: "rgba(37,99,235,0.08)", border: "rgba(37,99,235,0.15)" },
+    { text: "#7c3aed", bg: "rgba(124,58,237,0.08)", border: "rgba(124,58,237,0.15)" },
+    { text: "#c026d3", bg: "rgba(192,38,211,0.08)", border: "rgba(192,38,211,0.15)" },
+    { text: "#db2777", bg: "rgba(219,39,119,0.08)", border: "rgba(219,39,119,0.15)" },
+    { text: "#e11d48", bg: "rgba(225,29,72,0.08)", border: "rgba(225,29,72,0.15)" },
+  ];
 
-    return {
-      color: textColor,
-    };
+  const getTagColorIndex = (tag: string) => {
+    let hash = 0;
+    for (let i = 0; i < tag.length; i++) {
+      hash = ((hash << 5) - hash + tag.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash) % tagColorPalette.length;
+  };
+
+  const getTagStyle = (tag: string) => {
+    const color = tagColorPalette[getTagColorIndex(tag)];
+    return color;
   };
 
   const handleSearch = (e: FormEvent) => {
@@ -178,13 +186,23 @@ export default function Sidebar() {
               <Link
                 key={trimmedTag}
                 to={`/tag/${encodeURIComponent(trimmedTag)}`}
-                className={`blog-caption no-underline rounded-full transition-all duration-200 hover:bg-primary hover:text-white hover:shadow-sm ${sizeClass} border whitespace-nowrap`}
+                className={`blog-caption no-underline rounded-full transition-all duration-200 hover:shadow-sm hover:scale-105 ${sizeClass} whitespace-nowrap`}
                 style={{
-                  background: "rgba(16,185,129,0.08)",
-                  color: style.color,
-                  border: "1px solid rgba(16,185,129,0.15)",
+                  background: style.bg,
+                  color: style.text,
+                  border: `1px solid ${style.border}`,
                 }}
                 title={`${count} 篇文章`}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = style.text;
+                  e.currentTarget.style.color = "#ffffff";
+                  e.currentTarget.style.borderColor = style.text;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = style.bg;
+                  e.currentTarget.style.color = style.text;
+                  e.currentTarget.style.borderColor = style.border;
+                }}
               >
                 {trimmedTag}
               </Link>

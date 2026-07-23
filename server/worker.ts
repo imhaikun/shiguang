@@ -222,6 +222,56 @@ const DEFAULT_POSTS: Post[] = [
     tags: ["灵感碎片", "折腾", "随笔"],
     content: `<p>距离 NAS 组装完成已经一个月了。回想一下，这一个月还挺充实的。</p><h2>第 1 周：兴奋期</h2><p>刚装好那几天，每天下班就坐在电脑前折腾。</p><ul><li>装系统、建存储池、设共享——搞定！</li><li>把电脑里攒了好几年的电影电视剧都拷进去——满满当当！</li><li>装 Jellyfin，刮削海报，看着整整齐齐的海报墙，成就感拉满</li></ul><p>那几天逢人就推荐："整个 NAS 吧，真的香！"</p><h2>第 2 周：折腾期</h2><p>新鲜劲过去之后，开始进入折腾模式：</p><ul><li>觉得默认界面不好看，换主题、改样式</li><li>看论坛说某某容器好用，装了试试，不好用又删掉</li><li>研究远程访问，试了好几种方案</li><li>折腾下载工具，qBittorrent、Aria2、Transmission 挨个试</li></ul><p>这一周 Docker 里的容器装了删、删了装，最后留下的其实就那几个。</p><h2>第 3 周：踩坑期</h2><p>折腾多了，自然就踩坑了：</p><ul><li>权限问题折腾了一下午（前面有写）</li><li>手贱升级系统差点翻车（也写了）</li><li>硬盘咔咔响吓出一身冷汗（还是写了）</li></ul><p>每个坑踩完都感觉自己又进步了一点。</p><h2>第 4 周：沉淀期</h2><p>到了第四周，反而不怎么折腾了。</p><p>NAS 就那样安安静静地跑着，每天自动备份照片、定期拉取更新、定时自检硬盘。我偶尔上去看看状态，大部分时候甚至忘了它的存在。</p><blockquote>好的工具，就是让你感觉不到它的存在。</blockquote><p>但当你需要它的时候——想看某部老电影、想找几年前的照片、想在外面访问家里的文件——它永远都在那里。</p><h2>感受</h2><p>有人说 NAS 是"男生的首饰盒"，我觉得挺对的。它不一定有多实用，但折腾的过程本身就是乐趣。</p><p>而且，当你把各种数据从各个云服务商收回到自己硬盘里的时候，那种踏实感，是云盘给不了的。</p><p>接下来准备折腾什么？可能是虚拟机，可能是软路由，也可能先歇一阵。</p><p>不急，慢慢来。</p>`,
   },
+  {
+    slug: "z425-unboxing-setup",
+    title: "极空间 Z425 开箱测评与安装指南",
+    date: "2026-07-21",
+    excerpt:
+      "从开箱到开机，手把手带你完成极空间 Z425 的初次设置，包括硬件安装、系统配置和基础功能体验。",
+    category: "tutorial",
+    tags: ["入门指南", "极空间", "Z425", "教程"],
+    content: `<p>极空间 Z425 轻享版是一款入门级四盘位 NAS，搭载极空间 OS 5.0 系统，支持 Docker、远程访问等核心功能，性价比非常高。本文从开箱开始，带你一步步完成初次设置。</p><h2>一、开箱外观</h2><p>Z425 轻享版的包装延续了极空间一贯的简约风格，黑色纸盒配上产品图片，正面标注了核心参数。</p><p><img src="https://images.202616.xyz/uploads/1784615833878-w8cvnk1s.jpeg" alt="Z425 包装盒正面" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" /></p><p style="text-align: center; color: #666; font-size: 14px;">Z425 轻享版包装盒正面，简约的黑色设计</p><h3>配件清单</h3><ul><li>主机 x1</li><li>电源线 x1</li><li>网线 x1</li><li>硬盘架 x4</li><li>螺丝包 x1</li><li>快速入门指南 x1</li></ul><h3>外观设计</h3><p>Z425 轻享版采用金属机身设计，前面板为拉丝铝合金材质，质感出色。四盘位设计，支持 3.5 寸和 2.5 寸硬盘混插。顶部有散热格栅，底部有静音风扇。轻享版在处理器和内存上进行了优化，更适合家庭日常使用。</p><p><img src="https://images.202616.xyz/uploads/1784615837301-f4ypgcje.jpeg" alt="Z425 正面外观" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" /></p><p style="text-align: center; color: #666; font-size: 14px;">Z425 轻享版正面，拉丝铝合金面板质感出色</p><h2>二、硬盘安装</h2><p>安装硬盘非常简单，不需要螺丝刀：</p><ol><li>按下前面板的卡扣，打开硬盘仓门</li><li>取出硬盘架，将硬盘放入架内</li><li>用自带的免工具卡扣固定硬盘</li><li>将硬盘架插回硬盘仓</li><li>关闭仓门，听到卡扣声即可</li></ol><p><img src="https://images.202616.xyz/uploads/1784615842943-lzf787l9.jpeg" alt="硬盘架安装" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" /></p><p style="text-align: center; color: #666; font-size: 14px;">免工具硬盘架，轻轻一扣即可固定硬盘</p><p><img src="https://images.202616.xyz/uploads/1784615847280-lao32im3.jpeg" alt="硬盘安装完成" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" /></p><p style="text-align: center; color: #666; font-size: 14px;">硬盘安装完成，准备开机</p><blockquote><p><strong>建议</strong>：第一次使用建议使用全新硬盘，或者提前备份好数据后再插入。轻享版推荐使用 4TB-8TB 容量的硬盘。</p></blockquote><h2>三、系统初始化</h2><p>开机后，通过手机或电脑完成初始化：</p><h3>方法一：手机 APP 初始化（推荐）</h3><ol><li>下载"极空间"APP（iOS/Android）</li><li>确保手机和 NAS 在同一局域网</li><li>打开 APP，点击"添加设备"</li><li>APP 会自动发现 Z425</li><li>按照提示设置管理员密码、设备名称</li></ol><p><img src="https://images.202616.xyz/uploads/1784615849418-0u4ln1tk.jpeg" alt="手机APP初始化" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" /></p><p style="text-align: center; color: #666; font-size: 14px;">手机 APP 自动发现设备，一键初始化</p><h3>方法二：电脑 Web 初始化</h3><ol><li>打开浏览器，访问 https://www.zconnect.cn/</li><li>找到 Z425 设备，点击进入</li><li>设置管理员密码和设备名称</li></ol><p><img src="https://images.202616.xyz/uploads/1784615851536-7wl0p82s.jpeg" alt="Web初始化界面" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" /></p><p style="text-align: center; color: #666; font-size: 14px;">Web 初始化界面，设置管理员账号</p><h2>四、基础设置</h2><p>初始化完成后，建议进行以下基础设置：</p><h3>4.1 网络配置</h3><p>进入"设置" → "网络"，可以设置固定 IP、端口映射等。建议设置静态 IP，方便后续访问。</p><h3>4.2 存储池创建</h3><p>进入"存储" → "存储池"，点击"创建存储池"。轻享版推荐使用"基础模式"或"RAID 1"模式，根据硬盘数量和需求选择。</p><h3>4.3 更新系统</h3><p>进入"设置" → "系统更新"，检查并安装最新版本，确保功能完整。</p><h2>五、功能体验</h2><p>Z425 轻享版开箱即可用的核心功能：</p><p><img src="https://images.202616.xyz/uploads/1784615854914-7cka6ly2.jpeg" alt="极空间OS主界面" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" /></p><p style="text-align: center; color: #666; font-size: 14px;">极空间 OS 5.0 主界面，简洁直观</p><ul><li><strong>文件管理</strong>：支持 SMB、NFS、WebDAV 等多种协议</li><li><strong>照片备份</strong>：自动备份手机照片，支持人脸识别</li><li><strong>影音中心</strong>：内置媒体服务器，支持 DLNA 投屏</li><li><strong>文档协作</strong>：类似网盘的多人协作功能</li><li><strong>Docker</strong>：支持部署常用服务（轻享版建议选择轻量级容器）</li></ul><h2>总结</h2><p>极空间 Z425 轻享版是一款非常适合新手入门的 NAS 产品，硬件做工扎实，系统操作简单，性价比高。虽然配置上比标准版略低，但完全满足家庭日常使用需求。接下来可以继续折腾 Docker、远程访问等高级功能。</p>`,
+  },
+  {
+    slug: "z425-storage-pool-guide",
+    title: "极空间 Z425 硬盘配置与存储池创建",
+    date: "2026-07-22",
+    excerpt:
+      "深入讲解极空间 Z425 的存储池类型、RAID 模式选择、硬盘配置策略和数据安全建议。",
+    category: "tutorial",
+    tags: ["进阶实战", "极空间", "Z425", "存储", "RAID"],
+    content: `<p>存储池是 NAS 的核心，选择合适的存储配置直接影响数据安全和使用体验。本文详细讲解极空间 Z425 轻享版的存储池创建过程和 RAID 模式选择。</p><h2>一、存储池类型介绍</h2><p>极空间支持多种存储池类型，适用于不同场景：</p><table><tr><td><strong>类型</strong></td><td><strong>说明</strong></td><td><strong>优点</strong></td><td><strong>缺点</strong></td><td><strong>扩容方式</strong></td></tr><tr><td>基础模式</td><td>单盘独立使用</td><td>简单，空间利用率 100%</td><td>无冗余，单盘损坏数据丢失</td><td>可增加硬盘升级为 ZDR</td></tr><tr><td><strong style="color: #10b981;">ZDR</strong></td><td>极空间独有的存储池模式</td><td>双盘智能备份，硬盘容量可不同，利用率高</td><td>双备份内容占双倍空间</td><td>可增加硬盘扩容</td></tr><tr><td>RAID 1</td><td>双盘镜像</td><td>数据安全，读写性能好</td><td>容量减半</td><td>支持换盘扩容，操作复杂</td></tr><tr><td>RAID 5</td><td>分布式奇偶校验（3盘起）</td><td>空间利用率高，允许一块盘损坏</td><td>写入性能稍低，轻享版建议谨慎使用</td><td>增加硬盘扩容（需大于当前最小盘）</td></tr><tr><td>RAID 6</td><td>双重奇偶校验（4盘起）</td><td>允许两块盘同时损坏</td><td>空间利用率较低，轻享版不推荐</td><td>增加硬盘扩容（需大于当前最小盘）</td></tr><tr><td>双 RAID 1</td><td>两组独立镜像</td><td>灵活，可分批次添加硬盘</td><td>管理复杂</td><td>不支持无损扩容</td></tr></table><h2>二、ZDR 模式详解（极空间独有）</h2><p><strong style="color: #10b981;">ZDR</strong> 是极空间独有的存储池模式，相比传统 RAID 1 更加智能和灵活。它是一种基于存储池的双盘动态备份方案，而非简单的整盘镜像。</p><h3>ZDR 核心特点</h3><ul><li><strong>硬盘容量可不同</strong>：两块硬盘的容量可以不一样，充分利用现有硬盘资源</li><li><strong>智能双备份</strong>：设置为"双备份"的文件夹内容会在两块硬盘上同步存储，任意一块盘损坏数据不丢失</li><li><strong>灵活空间利用</strong>：非双备份内容仅存一份，硬盘利用率比 RAID 1 更高</li><li><strong>支持动态扩容</strong>：可以通过增加硬盘的方式扩容存储池</li></ul><h3>ZDR vs RAID 1 对比</h3><table><tr><td><strong>对比项</strong></td><td><strong>ZDR</strong></td><td><strong>RAID 1</strong></td></tr><tr><td>硬盘容量要求</td><td>可以不同</td><td>建议相同</td></tr><tr><td>备份粒度</td><td>文件夹级双备份</td><td>整盘镜像</td></tr><tr><td>空间利用率</td><td>更高（非双备份内容仅存一份）</td><td>固定50%</td></tr><tr><td>扩容方式</td><td>增加硬盘扩容</td><td>换盘扩容，操作复杂</td></tr></table><p><img src="https://images.202616.xyz/shiguang-20260721/storage-pool.png" alt="极空间存储池界面" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" /></p><p style="text-align: center; color: #666; font-size: 14px;">极空间存储池界面，显示 M.2 和 SATA 存储池状态</p><h2>三、各模式扩容规则详解</h2><p>不同存储池模式的扩容方式和限制各不相同，了解这些规则对后期维护非常重要：</p><h3>基础模式 → ZDR</h3><ul><li><strong>扩容方式</strong>：增加一块硬盘，存储池自动升级为 ZDR 模式</li><li><strong>适用场景</strong>：最初只有一块硬盘，后续添加第二块硬盘实现数据保护</li><li><strong>注意事项</strong>：升级过程会保留原有数据，但建议提前备份</li></ul><h3>ZDR 模式扩容</h3><ul><li><strong>扩容方式</strong>：直接增加硬盘，存储池容量相应增加</li><li><strong>硬盘限制</strong>：新增硬盘容量没有特殊要求，支持混合容量</li><li><strong>优势</strong>：相比 RAID 1 的换盘扩容，ZDR 扩容更加简单直接</li></ul><h3>RAID 1 扩容</h3><ul><li><strong>扩容方式</strong>：更换更大容量的硬盘（换盘扩容）</li><li><strong>操作流程</strong>：拔掉一块旧盘 → 插入新盘 → 等待重建 → 拔掉另一块旧盘 → 插入新盘 → 等待重建</li><li><strong>缺点</strong>：操作复杂，重建时间长，存在数据丢失风险</li></ul><h3>RAID 5/RAID 6 扩容</h3><ul><li><strong>扩容方式</strong>：增加硬盘</li><li><strong>容量要求</strong>：新增硬盘容量必须 ≥ 当前存储池中最小硬盘的容量</li><li><strong>示例</strong>：当前存储池使用 4TB+4TB+4TB（RAID 5），新增硬盘必须 ≥ 4TB</li><li><strong>注意</strong>：轻享版不推荐使用 RAID 5/6，性能压力较大</li></ul><h3>双 RAID 1 扩容</h3><ul><li><strong>扩容能力</strong>：<strong style="color: #dc2626;">不支持无损扩容</strong></li><li><strong>替代方案</strong>：备份数据后重新创建存储池，或新建独立存储池</li></ul><h2>四、存储池模式选择建议（轻享版专属）</h2><p>轻享版由于硬件配置的限制，在存储池模式选择上有一些特别的建议：</p><h3>2 块硬盘</h3><ul><li><strong>推荐</strong>：ZDR 模式（极空间独有，智能双备份，硬盘容量可不同）</li><li><strong>追求容量</strong>：基础模式（无数据保护）</li><li><strong>传统方案</strong>：RAID 1（容量减半，但整盘数据安全）</li></ul><h3>3-4 块硬盘</h3><ul><li><strong>推荐</strong>：ZDR 模式（支持灵活扩容）或基础模式</li><li><strong>不推荐</strong>：RAID 5（轻享版性能压力较大）</li></ul><h2>五、创建存储池步骤</h2><p>进入"存储" → "存储池"：</p><ol><li>点击"创建存储池"</li><li>选择存储池名称（如"数据池"）</li><li>选择要加入的硬盘</li><li>选择存储池模式（基础模式/ZDR/RAID 1/RAID 5 等）</li><li>点击"创建"，等待初始化完成</li></ol><blockquote><p><strong>注意</strong>：创建存储池会清空所有选中硬盘的数据，请确保提前备份！轻享版初始化时间可能比标准版长一些，请耐心等待。</p></blockquote><h2>六、ZDR 双备份设置</h2><p>使用 ZDR 模式后，可以针对特定文件夹设置双备份策略：</p><p><img src="https://images.202616.xyz/shiguang-20260721/zdr-settings.png" alt="ZDR双备份设置界面" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" /></p><p style="text-align: center; color: #666; font-size: 14px;">ZDR 双备份设置界面，可选择备份目录和设置备份频率</p><h3>设置步骤</h3><ol><li>进入"设置" → "ZDR 双备份"</li><li>点击"新建"，选择要双备份的文件夹</li><li>设置备份频率（如每 4 小时）</li><li>点击"立即备份"开始首次备份</li></ol><h3>双备份原理</h3><p>设置为"双备份"的文件夹内容会在两块硬盘上各存一份，任意一块硬盘损坏，数据仍可从另一块恢复。非双备份内容仅存一份，节省空间。这就是 ZDR 比传统 RAID 1 空间利用率更高的原因。</p><h2>七、硬盘配置策略（轻享版优化）</h2><h3>7.1 硬盘选择</h3><ul><li><strong>容量</strong>：轻享版推荐 4TB-8TB，ZDR 模式支持不同容量硬盘</li><li><strong>类型</strong>：推荐 NAS 专用硬盘（红盘、紫盘等），静音优先</li><li><strong>转速</strong>：5400 RPM 更适合轻享版，安静省电，性能足够</li></ul><h3>7.2 缓存加速（轻享版不推荐）</h3><p>轻享版的处理器和内存配置有限，添加 SSD 缓存的性能提升不明显，不建议额外花费。</p><h2>八、数据安全建议</h2><ul><li><strong>使用 ZDR</strong>：重要数据开启 ZDR 双备份，确保安全</li><li><strong>定期备份</strong>：重要数据建议备份到外部硬盘或云端</li><li><strong>监控状态</strong>：定期查看硬盘健康状态</li><li><strong>及时更换</strong>：硬盘出现警告时及时更换</li><li><strong>UPS 保护</strong>：配备 UPS，防止意外断电损坏数据</li></ul><h2>总结</h2><p>对于极空间 Z425 轻享版用户，<strong style="color: #10b981;">ZDR 模式是最佳选择</strong>。作为极空间独有的存储池模式，ZDR 既提供了智能的双盘备份功能，又支持不同容量硬盘混用和灵活扩容，非常适合家庭 NAS 使用场景。</p>`,
+  },
+  {
+    slug: "z425-remote-access",
+    title: "极空间 Z425 远程访问配置教程",
+    date: "2026-07-23",
+    excerpt:
+      "没有公网 IP？不会配置端口映射？本文教你三种远程访问极空间 Z425 的方法，总有一种适合你。",
+    category: "tutorial",
+    tags: ["进阶实战", "极空间", "Z425", "远程访问"],
+    content: `<p>远程访问是 NAS 的核心需求之一。极空间提供了多种远程访问方案，无论你有没有公网 IP，都能轻松实现远程访问。</p><h2>方案一：极空间自带远程访问（推荐）</h2><p>极空间内置了类似 P2P 的远程访问功能，无需公网 IP，开箱即用。</p><h3>配置步骤</h3><ol><li>进入"设置" → "远程访问"</li><li>开启"极空间远程访问"</li><li>设置访问域名（如 xxx.zconnect.cn）</li><li>验证邮箱（用于找回密码）</li></ol><h3>使用方式</h3><ul><li>手机 APP：直接输入域名和密码登录</li><li>电脑：访问 https://xxx.zconnect.cn</li><li>第三方工具：通过 WebDAV 协议连接</li></ul><h3>优缺点</h3><ul><li><strong>优点</strong>：无需公网 IP，配置简单，速度稳定</li><li><strong>缺点</strong>：依赖极空间服务器，部分地区可能速度较慢</li></ul><h2>方案二：端口映射（适合有公网 IP）</h2><p>如果你的宽带拥有公网 IP，可以通过端口映射实现远程访问。</p><h3>配置步骤</h3><ol><li>确认路由器已获取公网 IP（登录路由器管理后台查看）</li><li>在路由器中设置端口映射：</li><li>外部端口：自定义（如 50000）</li><li>内部端口：极空间管理端口（默认 80）</li><li>内部 IP：Z425 的局域网 IP</li><li>进入极空间"远程访问"，开启"自定义域名"</li><li>设置域名（可使用 DDNS 服务）</li></ol><h3>安全建议</h3><ul><li><strong>修改默认端口</strong>：不要使用 80、443 等常用端口</li><li><strong>开启 HTTPS</strong>：配置 SSL 证书，加密传输</li><li><strong>防火墙规则</strong>：限制访问 IP（可选）</li></ul><h2>方案三：Tailscale 零配置组网</h2><p>Tailscale 是一种基于 WireGuard 的零配置 VPN，无需端口映射，任何网络环境都能使用。</p><h3>配置步骤</h3><ol><li>注册 Tailscale 账号（https://tailscale.com）</li><li>在 Z425 上安装 Tailscale：</li><li>进入"应用中心" → "Docker"</li><li>搜索并安装 Tailscale 镜像</li><li>配置 Tailscale 认证令牌</li><li>在手机/电脑上安装 Tailscale 客户端</li><li>连接到同一 Tailscale 网络</li></ol><h3>使用方式</h3><p>连接 Tailscale 后，直接使用 Z425 的局域网 IP 即可访问，就像在同一网络一样。</p><h3>优缺点</h3><ul><li><strong>优点</strong>：无需公网 IP，安全性高，速度快</li><li><strong>缺点</strong>：需要安装额外软件，免费版有设备数量限制</li></ul><h2>三种方案对比</h2><table><tr><td>方案</td><td>是否需要公网 IP</td><td>配置难度</td><td>速度</td><td>安全性</td></tr><tr><td>极空间远程访问</td><td>否</td><td>简单</td><td>中</td><td>中</td></tr><tr><td>端口映射</td><td>是</td><td>中等</td><td>快</td><td>需自行配置</td></tr><tr><td>Tailscale</td><td>否</td><td>中等</td><td>快</td><td>高</td></tr></table><h2>总结</h2><p>对于大多数用户，极空间自带的远程访问功能已经足够。如果追求更高的速度和安全性，Tailscale 是很好的选择。</p>`,
+  },
+  {
+    slug: "z425-docker-guide",
+    title: "极空间 Z425 Docker 部署常用服务",
+    date: "2026-07-24",
+    excerpt:
+      "极空间 Z425 的 Docker 功能非常强大，本文带你部署最常用的几个服务：Jellyfin、qBittorrent、Portainer 和 Nextcloud。",
+    category: "tutorial",
+    tags: ["进阶实战", "极空间", "Z425", "Docker", "教程"],
+    content: `<p>极空间 OS 5.0 内置了完善的 Docker 支持，通过 Docker 可以扩展 NAS 的功能。对于 Z425 轻享版，建议选择轻量级容器，避免给硬件带来太大压力。本文介绍适合轻享版的常用 Docker 服务部署。</p><h2>一、准备工作</h2><p>在部署 Docker 服务前，建议：</p><ol><li>进入"设置" → "Docker"，确保 Docker 已启用</li><li>在存储池中创建"docker"目录，用于存储容器数据</li><li>了解 Docker 的基本概念（镜像、容器、卷）</li><li><strong>轻享版建议</strong>：同时运行的容器不超过 3 个，避免资源不足</li></ol><h2>二、部署 Jellyfin 媒体中心（轻享版推荐）</h2><p>Jellyfin 是开源的家庭媒体中心，支持电影、电视剧、音乐的管理和播放。轻享版运行 Jellyfin 完全没问题。</p><h3>部署步骤</h3><ol><li>进入"应用中心" → "Docker"</li><li>点击"镜像" → "搜索"，搜索"jellyfin"</li><li>选择官方镜像，点击"下载"</li><li>下载完成后，点击"创建容器"</li><li>配置容器：</li><li>名称：jellyfin</li><li>端口映射：8096 → 8096</li><li>卷映射：/docker/jellyfin/config → /config</li><li>卷映射：/docker/jellyfin/cache → /cache</li><li>卷映射：/data/media → /media</li><li>点击"启动"</li></ol><h3>访问方式</h3><p>浏览器访问 http://NAS_IP:8096，完成初始化配置。</p><h2>三、部署 qBittorrent 下载工具（轻享版推荐）</h2><p>qBittorrent 是轻量级的 BT 下载工具，支持 RSS 订阅和远程管理，资源占用很低。</p><h3>部署步骤</h3><ol><li>搜索"qbittorrent"镜像</li><li>下载官方镜像</li><li>创建容器：</li><li>名称：qbittorrent</li><li>端口映射：8080 → 8080（Web 界面）</li><li>端口映射：6881 → 6881（BT 端口）</li><li>卷映射：/docker/qbittorrent/config → /config</li><li>卷映射：/data/downloads → /downloads</li><li>环境变量：PUID=1000, PGID=1000</li><li>点击"启动"</li></ol><h3>访问方式</h3><p>浏览器访问 http://NAS_IP:8080，默认用户名 admin，密码 adminadmin。</p><h2>四、部署 Portainer 容器管理（轻享版推荐）</h2><p>Portainer 是 Docker 的可视化管理工具，方便管理容器、镜像和卷，资源占用极低。</p><h3>部署步骤</h3><ol><li>搜索"portainer"镜像</li><li>下载官方镜像</li><li>创建容器：</li><li>名称：portainer</li><li>端口映射：9000 → 9000</li><li>卷映射：/var/run/docker.sock → /var/run/docker.sock</li><li>点击"启动"</li></ol><h3>访问方式</h3><p>浏览器访问 http://NAS_IP:9000，设置管理员密码。</p><h2>五、部署 Nextcloud 私有云盘（轻享版慎用）</h2><p>Nextcloud 功能强大但资源占用较高，轻享版运行可能会有些吃力。如果确实需要，建议：</p><h3>部署建议</h3><ul><li>仅部署 Nextcloud 一个容器</li><li>关闭不必要的插件</li><li>使用轻量级数据库（SQLite）</li></ul><h3>部署步骤</h3><ol><li>搜索"nextcloud"镜像</li><li>下载官方镜像</li><li>创建容器：</li><li>名称：nextcloud</li><li>端口映射：8081 → 80</li><li>卷映射：/docker/nextcloud/html → /var/www/html</li><li>卷映射：/docker/nextcloud/data → /var/www/html/data</li><li>点击"启动"</li></ol><h3>访问方式</h3><p>浏览器访问 http://NAS_IP:8081，创建管理员账户。</p><h2>轻享版 Docker 避坑指南</h2><ul><li><strong>避免重负载容器</strong>：如 Plex、Emby、Home Assistant 等，资源占用较高</li><li><strong>控制容器数量</strong>：建议同时运行不超过 3 个容器</li><li><strong>定期清理</strong>：删除不需要的镜像和容器，释放磁盘空间</li><li><strong>监控资源</strong>：在极空间"资源监控"中查看 CPU 和内存使用情况</li></ul><h2>总结</h2><p>Docker 是极空间 Z425 轻享版的一大亮点，通过选择合适的轻量级容器，可以将 NAS 打造成功能丰富的家庭服务器，同时不会给硬件带来太大压力。</p>`,
+  },
+  {
+    slug: "z425-backup-strategy",
+    title: "极空间 Z425 数据备份策略与实践",
+    date: "2026-07-25",
+    excerpt:
+      "数据安全是 NAS 的核心，本文介绍极空间 Z425 的多种备份方式，包括本地备份、异地备份和云端备份，构建完整的数据安全体系。",
+    category: "tutorial",
+    tags: ["进阶实战", "极空间", "Z425", "备份", "数据安全"],
+    content: `<p>"RAID 不是备份"——这是每个 NAS 用户都应该记住的一句话。RAID 只能防止硬盘损坏，但不能防止误删、病毒攻击或自然灾害。本文介绍极空间 Z425 轻享版的完整备份策略。</p><h2>一、备份策略三层架构</h2><p>一个完整的备份策略应该包含三个层次：</p><ol><li><strong>第一层：本地冗余</strong>——RAID，防止硬盘损坏（轻享版推荐基础模式或 RAID 1）</li><li><strong>第二层：本地备份</strong>——备份到外部硬盘</li><li><strong>第三层：异地备份</strong>——备份到远程位置或云端</li></ol><blockquote><p>遵循"3-2-1"原则：3 份数据副本，2 种存储介质，1 份异地备份。</p></blockquote><h2>二、本地备份：外部硬盘（轻享版推荐）</h2><p>极空间支持将数据备份到外部 USB 硬盘，这是轻享版用户最容易实现的备份方式。</p><h3>备份步骤</h3><ol><li>将 USB 硬盘插入 Z425 的 USB 接口</li><li>进入"存储" → "外部存储"</li><li>识别并挂载 USB 硬盘</li><li>进入"备份" → "新建备份任务"</li><li>选择源目录和目标目录（USB 硬盘）</li><li>设置备份频率（每天/每周）</li><li>选择备份模式：全量备份/增量备份</li></ol><h3>备份模式说明</h3><ul><li><strong>全量备份</strong>：每次备份所有文件，占用空间大，但恢复快</li><li><strong>增量备份</strong>：只备份变化的文件，占用空间小，恢复需要多次合并</li><li><strong>差异备份</strong>：备份相对于上次全量备份的变化</li></ul><h3>轻享版建议</h3><p>轻享版建议使用增量备份模式，可以减少备份时间和对系统性能的影响。</p><h2>三、异地备份：其他 NAS</h2><p>如果有多台 NAS，可以互相备份，实现异地容灾。</p><h3>配置步骤</h3><ol><li>在目标 NAS 上创建共享文件夹</li><li>进入 Z425 的"备份" → "新建备份任务"</li><li>选择备份目标为"网络存储"</li><li>输入目标 NAS 的 IP、用户名和密码</li><li>选择共享文件夹作为备份目标</li><li>设置备份计划</li></ol><h2>四、云端备份：对象存储（轻享版推荐）</h2><p>极空间支持将数据备份到各大云厂商的对象存储服务，这是轻享版用户实现异地备份的最佳选择。</p><h3>支持的云存储</h3><ul><li><strong>阿里云 OSS</strong></li><li><strong>腾讯云 COS</strong></li><li><strong>华为云 OBS</strong></li><li><strong>Backblaze B2</strong></li><li><strong>S3 兼容存储</strong></li></ul><h3>配置步骤</h3><ol><li>在云厂商控制台创建存储桶</li><li>获取 Access Key 和 Secret Key</li><li>进入 Z425 的"备份" → "新建备份任务"</li><li>选择备份目标为"云存储"</li><li>选择云厂商，输入密钥和存储桶信息</li><li>设置备份计划和加密选项</li></ol><h3>成本估算</h3><p>以阿里云 OSS 为例，存储 1TB 数据每月约 20-30 元，适合重要数据的异地备份。轻享版用户建议只备份关键数据，控制成本。</p><h2>五、照片自动备份</h2><p>极空间提供了便捷的照片备份功能：</p><h3>手机照片备份</h3><ol><li>打开极空间 APP</li><li>进入"照片" → "备份设置"</li><li>开启"自动备份"</li><li>选择备份相册和备份质量</li></ol><h3>电脑文件同步</h3><ol><li>安装极空间桌面客户端</li><li>设置同步文件夹</li><li>文件会自动同步到 NAS</li></ol><h2>六、备份验证</h2><p>备份完成后，一定要验证备份是否可用：</p><ol><li><strong>定期测试恢复</strong>：随机抽取文件进行恢复测试</li><li><strong>检查备份日志</strong>：确认备份任务是否成功执行</li><li><strong>验证文件完整性</strong>：使用校验工具验证文件是否损坏</li></ol><h2>轻享版备份策略总结</h2><p>对于极空间 Z425 轻享版用户，推荐以下备份策略：</p><ul><li><strong>本地冗余</strong>：使用基础模式或 RAID 1，保证硬盘损坏时数据安全</li><li><strong>本地备份</strong>：定期备份到外部 USB 硬盘，作为第二份保障</li><li><strong>云端备份</strong>：将最重要的数据（如照片、文档）备份到云存储，实现异地容灾</li></ul><h2>总结</h2><p>数据安全是一个持续的过程，不要依赖单一的保护方式。通过结合本地冗余、本地备份和云端备份，构建完整的数据安全体系。对于轻享版用户，重点放在"基础模式 + 外部硬盘备份 + 云端关键数据备份"即可。</p>`,
+  },
 ];
 
 async function readPosts(kv: KVNamespace): Promise<Post[]> {
@@ -323,10 +373,10 @@ function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-async function sendEmail(env: Env, to: string, resetUrl: string): Promise<boolean> {
+async function sendEmail(env: Env, to: string, resetUrl: string): Promise<{ success: boolean; message?: string }> {
   const resendApiKey = env.RESEND_API_KEY;
   if (!resendApiKey) {
-    return false;
+    return { success: false, message: "未配置RESEND_API_KEY" };
   }
 
   try {
@@ -356,9 +406,13 @@ async function sendEmail(env: Env, to: string, resetUrl: string): Promise<boolea
     });
 
     const data = await response.json();
-    return response.ok && data.id;
-  } catch {
-    return false;
+    if (response.ok && data.id) {
+      return { success: true };
+    } else {
+      return { success: false, message: data.message || "邮件发送失败" };
+    }
+  } catch (error) {
+    return { success: false, message: (error as Error).message || "网络错误" };
   }
 }
 
@@ -402,7 +456,7 @@ export default {
     // 重置文章为默认数据
     if (path === "/api/reset-posts" && method === "GET") {
       await env.USERS_KV.put(POSTS_KEY, JSON.stringify(DEFAULT_POSTS));
-      return jsonResponse({ success: true, message: "文章已重置为默认数据", count: DEFAULT_POSTS.length });
+      return jsonResponse({ success: true, message: "文章已重置为默认数据", count: DEFAULT_POSTS.length, version: "2026-07-21-v2" });
     }
 
     // 重置管理员密码
@@ -743,8 +797,8 @@ export default {
       await env.USERS_KV.put(`token:${token}`, email, { expirationTtl: TOKEN_TTL_SECONDS });
 
       const sent = await sendEmail(env, email, resetUrl);
-      if (!sent) {
-        return jsonResponse({ success: false, message: "邮件发送失败，请稍后重试" }, 500);
+      if (!sent.success) {
+        return jsonResponse({ success: false, message: sent.message || "邮件发送失败，请稍后重试" }, 500);
       }
 
       return jsonResponse({ success: true, message: "重置链接已发送，请查收邮件" });

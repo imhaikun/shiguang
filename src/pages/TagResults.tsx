@@ -1,14 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import TwoColumn from "@/components/TwoColumn";
 import ArticleListItem from "@/components/ArticleListItem";
 import { usePosts } from "@/hooks/usePosts";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+
+const PAGE_SIZE = 10;
 
 export default function TagResults() {
   const { tag = "" } = useParams();
   const decodedTag = decodeURIComponent(tag);
-  const { loaded, loadPosts, getPostsByTag } = usePosts();
+  const { loaded, loadPosts, posts } = usePosts();
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     if (!loaded) {
@@ -16,7 +20,27 @@ export default function TagResults() {
     }
   }, [loaded, loadPosts]);
 
-  const posts = getPostsByTag(decodedTag);
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [tag]);
+
+  const allPosts = useMemo(() => {
+    return posts.filter((post) => post.tags.includes(decodedTag));
+  }, [posts, decodedTag]);
+
+  const visiblePosts = useMemo(() => {
+    return allPosts.slice(0, visibleCount);
+  }, [allPosts, visibleCount]);
+
+  const hasMore = visibleCount < allPosts.length;
+
+  const { lastElementRef } = useInfiniteScroll({
+    hasMore,
+    isLoading: false,
+    onLoadMore: () => {
+      setVisibleCount((prev) => prev + PAGE_SIZE);
+    },
+  });
 
   return (
     <TwoColumn>
@@ -32,20 +56,34 @@ export default function TagResults() {
           标签：{decodedTag}
         </h1>
         <p className="blog-body">
-          共 {posts.length} 篇文章
+          共 {allPosts.length} 篇文章
         </p>
       </div>
 
-      {posts.length > 0 ? (
-        <div className="flex flex-col mt-4">
-          {posts.map((post, index) => (
-            <ArticleListItem
-              key={post.slug}
-              post={post}
-              showDivider={index < posts.length - 1}
-            />
-          ))}
-        </div>
+      {allPosts.length > 0 ? (
+        <>
+          <div className="flex flex-col mt-4">
+            {visiblePosts.map((post, index) => (
+              <div
+                key={post.slug}
+                ref={index === visiblePosts.length - 1 && hasMore ? lastElementRef : null}
+              >
+                <ArticleListItem
+                  post={post}
+                  showDivider={index < visiblePosts.length - 1}
+                />
+              </div>
+            ))}
+          </div>
+          {hasMore && (
+            <div className="flex justify-center mt-4">
+              <div
+                className="w-5 h-5 border-2 border-primary rounded-full animate-spin"
+                style={{ borderColor: "var(--blog-primary)", borderTopColor: "transparent" }}
+              />
+            </div>
+          )}
+        </>
       ) : (
         <p className="blog-body mt-6">该标签下暂无文章。</p>
       )}

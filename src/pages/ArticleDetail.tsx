@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import TableOfContents from "@/components/TableOfContents";
 import { addHeadingIds } from "@/utils/headingIds";
 import { markdownToHtml } from "@/utils/markdownToHtml";
+import { initCodeBlocks } from "@/utils/initCodeBlocks";
 
 const tagColorPalette = [
   { text: "#dc2626", bg: "rgba(220,38,38,0.08)", border: "rgba(220,38,38,0.15)" },
@@ -38,8 +39,10 @@ const getTagStyle = (tag: string) => {
 
 export default function ArticleDetail() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [contentKey, setContentKey] = useState(0);
   const { isDark } = useTheme();
   const contentRef = useRef<HTMLDivElement>(null);
+  const highlighterRef = useRef<((code: string, language: string) => string | null) | null>(null);
 
   const handleImageClick = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
     e.preventDefault();
@@ -60,179 +63,6 @@ export default function ArticleDetail() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [previewImage, closePreview]);
-
-  const processCodeBlocks = useCallback((container: HTMLElement) => {
-    console.log("processCodeBlocks called, container:", !!container);
-
-    // Clean up any existing code-block-containers first (avoid double-processing)
-    container.querySelectorAll(".code-block-container").forEach((existing) => {
-      const pre = existing.querySelector("pre");
-      if (pre && pre.parentElement) {
-        existing.parentNode?.insertBefore(pre, existing);
-      }
-      existing.remove();
-    });
-
-    container.querySelectorAll(".code-block-wrapper").forEach((wrapper) => {
-      const selector = wrapper.querySelector(".code-lang-selector");
-      if (selector) selector.remove();
-      const pre = wrapper.querySelector("pre");
-      if (pre) {
-        wrapper.parentNode?.insertBefore(pre, wrapper);
-      }
-      wrapper.remove();
-    });
-
-    container.querySelectorAll(".code-lang-selector").forEach((s) => s.remove());
-
-    const pres = container.querySelectorAll("pre");
-    console.log("Found pre elements:", pres.length);
-    if (pres.length === 0) return;
-
-    pres.forEach((pre) => {
-      const codeEl = pre.querySelector("code");
-      if (!codeEl) {
-        console.log("Pre has no code element:", pre.textContent?.substring(0, 50));
-        return;
-      }
-
-      if (pre.parentElement?.classList.contains("code-block-container")) {
-        console.log("Already in code-block-container, skipping");
-        return;
-      }
-
-      const lang = (codeEl as HTMLElement).getAttribute("data-language") || "plaintext";
-      const rawCode = codeEl.textContent || "";
-      const lineCount = rawCode.split("\n").length;
-      console.log("Processing code block, lang:", lang, "lines:", lineCount);
-
-      const blockContainer = document.createElement("div");
-      blockContainer.className = "code-block-container";
-      if (lineCount > 10) {
-        blockContainer.classList.add("collapsible");
-      }
-
-      const header = document.createElement("div");
-      header.className = "code-block-header";
-
-      const langSpan = document.createElement("span");
-      langSpan.className = "code-block-lang";
-      langSpan.textContent = lang.toUpperCase() || "PLAINTEXT";
-
-      // Add collapse button for long code blocks
-      if (lineCount > 10) {
-        const collapseBtn = document.createElement("button");
-        collapseBtn.className = "code-block-collapse-btn";
-        collapseBtn.type = "button";
-        collapseBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg><span>折叠</span>`;
-        collapseBtn.addEventListener("click", () => {
-          const body = blockContainer.querySelector(".code-block-body");
-          if (body) {
-            const isCollapsed = body.classList.toggle("collapsed");
-            collapseBtn.innerHTML = isCollapsed
-              ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg><span>展开</span>`
-              : `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg><span>折叠</span>`;
-          }
-        });
-        header.appendChild(collapseBtn);
-      }
-
-      const copyBtn = document.createElement("button");
-      copyBtn.className = "code-block-copy";
-      copyBtn.type = "button";
-      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span>`;
-
-      copyBtn.addEventListener("click", () => {
-        navigator.clipboard.writeText(rawCode).then(() => {
-          copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>已复制</span>`;
-          copyBtn.classList.add("copied");
-          setTimeout(() => {
-            copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>复制</span>`;
-            copyBtn.classList.remove("copied");
-          }, 2000);
-        });
-      });
-
-      header.appendChild(langSpan);
-      header.appendChild(copyBtn);
-
-      const body = document.createElement("div");
-      body.className = "code-block-body";
-
-      const lines = rawCode.split("\n");
-      const lineNumbers = document.createElement("div");
-      lineNumbers.className = "code-block-line-numbers";
-      lines.forEach((_, i) => {
-        const num = document.createElement("span");
-        num.className = "code-block-line-number";
-        num.textContent = String(i + 1);
-        lineNumbers.appendChild(num);
-      });
-
-      const newPre = document.createElement("pre");
-      const newCode = document.createElement("code");
-
-      newCode.textContent = rawCode;
-      newCode.className = `hljs language-${lang}`;
-
-      newPre.appendChild(newCode);
-      body.appendChild(lineNumbers);
-      body.appendChild(newPre);
-
-      blockContainer.appendChild(header);
-      blockContainer.appendChild(body);
-
-      console.log("Replacing pre with code-block-container");
-      pre.parentNode?.replaceChild(blockContainer, pre);
-    });
-
-    Promise.all([
-      import("highlight.js"),
-      import("highlight.js/lib/languages/python"),
-      import("highlight.js/lib/languages/javascript"),
-      import("highlight.js/lib/languages/typescript"),
-      import("highlight.js/lib/languages/bash"),
-      import("highlight.js/lib/languages/json"),
-      import("highlight.js/lib/languages/sql"),
-      import("highlight.js/lib/languages/go"),
-      import("highlight.js/lib/languages/rust"),
-      import("highlight.js/lib/languages/java"),
-      import("highlight.js/lib/languages/xml"),
-      import("highlight.js/lib/languages/css"),
-      import("highlight.js/lib/languages/markdown"),
-      import("highlight.js/lib/languages/yaml"),
-    ]).then(([main, python, javascript, typescript, bash, json, sql, go, rust, java, xml, css, markdown, yaml]) => {
-      console.log("hljs loaded, applying syntax highlighting");
-      const hljs = main.default;
-      hljs.registerLanguage("python", python.default);
-      hljs.registerLanguage("javascript", javascript.default);
-      hljs.registerLanguage("typescript", typescript.default);
-      hljs.registerLanguage("bash", bash.default);
-      hljs.registerLanguage("json", json.default);
-      hljs.registerLanguage("sql", sql.default);
-      hljs.registerLanguage("go", go.default);
-      hljs.registerLanguage("rust", rust.default);
-      hljs.registerLanguage("java", java.default);
-      hljs.registerLanguage("html", xml.default);
-      hljs.registerLanguage("css", css.default);
-      hljs.registerLanguage("yaml", yaml.default);
-      hljs.registerLanguage("markdown", markdown.default);
-
-      container.querySelectorAll(".code-block-body pre code").forEach((codeEl) => {
-        const lang = codeEl.getAttribute("class")?.replace("hljs language-", "") || "plaintext";
-        const rawCode = codeEl.textContent || "";
-        if (lang && lang !== "plaintext" && lang !== "hljs") {
-          try {
-            const result = hljs.highlight(rawCode, { language: lang });
-            codeEl.innerHTML = result.value;
-          } catch {
-            codeEl.textContent = rawCode;
-          }
-        }
-      });
-      console.log("Syntax highlighting applied");
-    });
-  }, []);
 
   const processArticleImages = useCallback((container: HTMLElement) => {
     const allImages = Array.from(container.querySelectorAll("img"));
@@ -366,20 +196,142 @@ export default function ArticleDetail() {
   useEffect(() => {
     if (contentRef.current && post) {
       const el = contentRef.current;
-      const checkAndProcess = () => {
-        const preCount = el.querySelectorAll("pre").length;
-        console.log("ArticleDetail: checking pre count:", preCount);
-        if (preCount > 0) {
-          processArticleImages(el);
-          processCodeBlocks(el);
-        } else if (el.innerHTML.length > 0) {
-          console.log("ArticleDetail: no pre found, retrying...");
-          setTimeout(checkAndProcess, 100);
-        }
-      };
-      checkAndProcess();
+      processArticleImages(el);
     }
-  }, [post, processArticleImages, processCodeBlocks]);
+  }, [post, processArticleImages]);
+
+  useEffect(() => {
+    initCodeBlocks();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const hljs = (await import("highlight.js/lib/core")).default;
+      const [
+        javascript,
+        typescript,
+        python,
+        bash,
+        shell,
+        xml,
+        css,
+        json,
+        markdown,
+        sql,
+        java,
+        cpp,
+        c,
+        rust,
+        go,
+        yaml,
+        dockerfile,
+        php,
+        ruby,
+        swift,
+        kotlin,
+        lua,
+        perl,
+        r,
+        objectivec,
+        vim,
+        nginx,
+        graphql,
+        ini,
+      ] = await Promise.all([
+        import("highlight.js/lib/languages/javascript"),
+        import("highlight.js/lib/languages/typescript"),
+        import("highlight.js/lib/languages/python"),
+        import("highlight.js/lib/languages/bash"),
+        import("highlight.js/lib/languages/shell"),
+        import("highlight.js/lib/languages/xml"),
+        import("highlight.js/lib/languages/css"),
+        import("highlight.js/lib/languages/json"),
+        import("highlight.js/lib/languages/markdown"),
+        import("highlight.js/lib/languages/sql"),
+        import("highlight.js/lib/languages/java"),
+        import("highlight.js/lib/languages/cpp"),
+        import("highlight.js/lib/languages/c"),
+        import("highlight.js/lib/languages/rust"),
+        import("highlight.js/lib/languages/go"),
+        import("highlight.js/lib/languages/yaml"),
+        import("highlight.js/lib/languages/dockerfile"),
+        import("highlight.js/lib/languages/php"),
+        import("highlight.js/lib/languages/ruby"),
+        import("highlight.js/lib/languages/swift"),
+        import("highlight.js/lib/languages/kotlin"),
+        import("highlight.js/lib/languages/lua"),
+        import("highlight.js/lib/languages/perl"),
+        import("highlight.js/lib/languages/r"),
+        import("highlight.js/lib/languages/objectivec"),
+        import("highlight.js/lib/languages/vim"),
+        import("highlight.js/lib/languages/nginx"),
+        import("highlight.js/lib/languages/graphql"),
+        import("highlight.js/lib/languages/ini"),
+      ]);
+
+      hljs.registerLanguage("javascript", javascript.default);
+      hljs.registerLanguage("js", javascript.default);
+      hljs.registerLanguage("typescript", typescript.default);
+      hljs.registerLanguage("ts", typescript.default);
+      hljs.registerLanguage("python", python.default);
+      hljs.registerLanguage("py", python.default);
+      hljs.registerLanguage("bash", bash.default);
+      hljs.registerLanguage("shell", shell.default);
+      hljs.registerLanguage("sh", shell.default);
+      hljs.registerLanguage("html", xml.default);
+      hljs.registerLanguage("xml", xml.default);
+      hljs.registerLanguage("css", css.default);
+      hljs.registerLanguage("json", json.default);
+      hljs.registerLanguage("markdown", markdown.default);
+      hljs.registerLanguage("md", markdown.default);
+      hljs.registerLanguage("sql", sql.default);
+      hljs.registerLanguage("java", java.default);
+      hljs.registerLanguage("cpp", cpp.default);
+      hljs.registerLanguage("c", c.default);
+      hljs.registerLanguage("rust", rust.default);
+      hljs.registerLanguage("rs", rust.default);
+      hljs.registerLanguage("go", go.default);
+      hljs.registerLanguage("golang", go.default);
+      hljs.registerLanguage("yaml", yaml.default);
+      hljs.registerLanguage("yml", yaml.default);
+      hljs.registerLanguage("dockerfile", dockerfile.default);
+      hljs.registerLanguage("php", php.default);
+      hljs.registerLanguage("ruby", ruby.default);
+      hljs.registerLanguage("rb", ruby.default);
+      hljs.registerLanguage("swift", swift.default);
+      hljs.registerLanguage("kotlin", kotlin.default);
+      hljs.registerLanguage("kt", kotlin.default);
+      hljs.registerLanguage("lua", lua.default);
+      hljs.registerLanguage("perl", perl.default);
+      hljs.registerLanguage("pl", perl.default);
+      hljs.registerLanguage("r", r.default);
+      hljs.registerLanguage("objectivec", objectivec.default);
+      hljs.registerLanguage("objc", objectivec.default);
+      hljs.registerLanguage("vim", vim.default);
+      hljs.registerLanguage("nginx", nginx.default);
+      hljs.registerLanguage("graphql", graphql.default);
+      hljs.registerLanguage("gql", graphql.default);
+      hljs.registerLanguage("ini", ini.default);
+
+      if (!cancelled) {
+        highlighterRef.current = (code: string, language: string) => {
+          try {
+            const result = hljs.highlight(code, {
+              language: hljs.getLanguage(language) ? language : "plaintext",
+              ignoreIllegals: true,
+            });
+            return result.value;
+          } catch {
+            return null;
+          }
+        };
+        // 强制重新渲染以应用高亮
+        setContentKey((k) => k + 1);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   if (!post) {
     return (
@@ -457,8 +409,13 @@ export default function ArticleDetail() {
         {/* 文章内容 */}
         <div className="flex-1">
           <div
+            key={contentKey}
             className="prose-editorial"
-            dangerouslySetInnerHTML={{ __html: addHeadingIds(markdownToHtml(post.content)) }}
+            dangerouslySetInnerHTML={{
+              __html: addHeadingIds(
+                markdownToHtml(post.content, { highlighter: highlighterRef.current ?? undefined }),
+              ),
+            }}
             ref={contentRef}
           />
         </div>

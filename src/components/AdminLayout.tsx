@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import BackToTop from "@/components/BackToTop";
 
 const navItems = [
   { to: "/admin", icon: LayoutDashboard, label: "仪表盘", end: true },
@@ -102,6 +103,8 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+
+      <BackToTop />
     </div>
   );
 }

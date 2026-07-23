@@ -616,6 +616,53 @@
   background-color: #67060c;
 }
 
+/* ── 复制按钮图标切换 ── */
+.code-block-copy .check-icon {
+  display: none;
+}
+.code-block-copy.copied .copy-icon {
+  display: none;
+}
+.code-block-copy.copied .check-icon {
+  display: block;
+}
+
+/* ── 折叠态展开按钮 ── */
+.code-block-expand {
+  position: absolute;
+  left: 50%;
+  bottom: 0.625rem;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: "Inter", "Noto Sans SC", sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  padding: 0.25rem 0.75rem;
+  color: var(--gh-header-fg);
+  background: var(--gh-bg);
+  border: 1px solid var(--gh-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.code-block-expand:hover {
+  color: var(--gh-fg);
+  border-color: var(--gh-fg);
+}
+.code-block-expand:active {
+  transform: translateX(-50%) scale(0.97);
+}
+
+/* ── 行悬停：覆盖上一轮的 .code-line，长行溢出时背景也能铺满 ── */
+.code-line {
+  display: inline-block;
+  min-width: 100%;
+  width: max-content;
+}
+
 /* 表格样式 */
 .prose-editorial table {
   width: 100%;
