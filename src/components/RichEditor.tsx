@@ -577,6 +577,27 @@ export default function RichEditor({
         return;
       }
     }
+
+    // 粘贴到代码块内时：用 insertText 插入纯文本，保留换行符
+    if (mode === "rich") {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const element = container.nodeType === Node.TEXT_NODE
+          ? container.parentElement
+          : (container as HTMLElement);
+        if (element?.closest("pre")) {
+          e.preventDefault();
+          const text = e.clipboardData?.getData("text/plain") ?? "";
+          document.execCommand("insertText", false, text);
+          if (editorRef.current) {
+            onChange(getCleanHTML(editorRef.current));
+          }
+          return;
+        }
+      }
+    }
   };
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -706,23 +727,12 @@ export default function RichEditor({
     const targetPre = preElement || codeElement?.closest("pre");
     if (!targetPre || !editorRef.current) return;
 
-    // Check if there's already a paragraph after the pre block
-    let nextSibling = targetPre.nextSibling;
-    if (!nextSibling || nextSibling.nodeName === "#text") {
-      const newP = document.createElement("p");
-      newP.innerHTML = "<br>";
-      targetPre.parentNode?.insertBefore(newP, targetPre.nextSibling);
-      nextSibling = newP;
+    // 在代码块内按 Enter：插入换行符 \n，不跳出代码块
+    // Shift+Enter 也插入换行
+    document.execCommand("insertText", false, "\n");
+    if (editorRef.current) {
+      onChange(getCleanHTML(editorRef.current));
     }
-
-    // Move cursor to the paragraph after the code block
-    const newRange = document.createRange();
-    newRange.selectNodeContents(nextSibling as HTMLElement);
-    newRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(newRange);
-
-    onChange(editorRef.current.innerHTML);
   };
 
   const handleMarkdownChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
