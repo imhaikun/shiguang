@@ -145,14 +145,7 @@ function upgrade(pre: HTMLPreElement, highlighter: Highlighter | null): void {
 
   // 阶段 0：记下 pre 原位置
   const originalParent = pre.parentNode;
-  const placeholder = document.createComment("code-block-placeholder");
-  if (originalParent) {
-    originalParent.insertBefore(placeholder, pre);
-  }
-
-  // 阶段 1：摘成游离节点
-  pre.remove();
-  pre.removeAttribute("style");
+  const nextSibling = pre.nextSibling;
 
   // 阶段 2：组装容器
   const container = document.createElement("div");
@@ -207,11 +200,16 @@ function upgrade(pre: HTMLPreElement, highlighter: Highlighter | null): void {
   codeEl.classList.add("hljs");
   if (lang && lang !== "plaintext") codeEl.classList.add(`language-${lang}`);
   codeArea.appendChild(codeEl);
-  pre.replaceWith(codeArea);
 
   body.appendChild(codeArea);
   container.appendChild(header);
   container.appendChild(body);
+
+  // 阶段 3：插入到原位置，移除旧 pre
+  if (originalParent) {
+    originalParent.insertBefore(container, nextSibling);
+    originalParent.removeChild(pre);
+  }
 
   if (isCollapsible) {
     const expandBtn = document.createElement("button");
@@ -223,14 +221,6 @@ function upgrade(pre: HTMLPreElement, highlighter: Highlighter | null): void {
     container.appendChild(expandBtn);
     body.classList.add("collapsed");
     if (collapseBtn) collapseBtn.textContent = "展开";
-  }
-
-  // 阶段 3：插入到占位符位置
-  if (placeholder.parentNode) {
-    placeholder.parentNode.insertBefore(container, placeholder);
-    placeholder.parentNode.removeChild(placeholder);
-  } else if (originalParent) {
-    originalParent.appendChild(container);
   }
 }
 
