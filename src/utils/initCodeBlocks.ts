@@ -206,7 +206,8 @@ function upgrade(pre: HTMLPreElement, highlighter: Highlighter | null): void {
   codeEl.innerHTML = buildCodeLinesHtml(highlighter, rawLines, lang);
   codeEl.classList.add("hljs");
   if (lang && lang !== "plaintext") codeEl.classList.add(`language-${lang}`);
-  pre.replaceWith(codeArea); // 用 codeArea 替换旧 pre
+  codeArea.appendChild(codeEl);
+  pre.replaceWith(codeArea);
 
   body.appendChild(codeArea);
   container.appendChild(header);
