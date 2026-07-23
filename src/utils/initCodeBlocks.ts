@@ -1,9 +1,10 @@
 /**
  * 为 markdownToHtml 渲染出的代码块注入交互。
- * 基于事件委托，首次渲染与后续动态插入的内容均生效。
+ * 基于事件委托，单个 document 级监听器处理所有代码块的复制/展开按钮。
+ * @returns 解绑函数，调用后移除事件监听。
  */
-export function initCodeBlocks(scope: Document | HTMLElement = document): void {
-  scope.addEventListener("click", (event) => {
+export function initCodeBlocks(): () => void {
+  const onClick = (event: Event) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
 
@@ -37,5 +38,11 @@ export function initCodeBlocks(scope: Document | HTMLElement = document): void {
         ?.classList.remove("collapsed");
       expandBtn.remove();
     }
-  });
+  };
+
+  document.addEventListener("click", onClick);
+
+  return () => {
+    document.removeEventListener("click", onClick);
+  };
 }

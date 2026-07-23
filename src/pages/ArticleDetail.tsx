@@ -44,12 +44,6 @@ export default function ArticleDetail() {
   const contentRef = useRef<HTMLDivElement>(null);
   const highlighterRef = useRef<((code: string, language: string) => string | null) | null>(null);
 
-  const handleImageClick = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
-    e.preventDefault();
-    const img = e.currentTarget;
-    setPreviewImage(img.src);
-  }, []);
-
   const closePreview = useCallback(() => {
     setPreviewImage(null);
   }, []);
@@ -174,14 +168,19 @@ export default function ArticleDetail() {
       }
     }
 
+    // ← 改动③-a：幂等标记，防止重跑时重复绑监听
     const remainingImages = container.querySelectorAll("img");
     remainingImages.forEach((img) => {
-      (img as HTMLImageElement).style.cursor = "zoom-in";
-      img.addEventListener("click", () => {
-        setPreviewImage((img as HTMLImageElement).src);
+      const image = img as HTMLImageElement;
+      if (image.dataset.previewBound === "1") return;
+      image.dataset.previewBound = "1";
+      image.style.cursor = "zoom-in";
+      image.addEventListener("click", () => {
+        setPreviewImage(image.src);
       });
     });
   }, []);
+
   const { slug = "" } = useParams();
   const { loaded, loadPosts, getPostBySlug, getAdjacentPosts } = usePosts();
 
@@ -193,16 +192,19 @@ export default function ArticleDetail() {
 
   const post = getPostBySlug(slug);
 
+  // ← 改动③-b：依赖加 contentKey，高亮重建正文后重跑图片处理
   useEffect(() => {
     if (contentRef.current && post) {
       const el = contentRef.current;
       processArticleImages(el);
     }
-  }, [post, processArticleImages]);
+  }, [post, processArticleImages, contentKey]);
 
+  // ← 改动②：依赖 [] → [contentKey]，加 cleanup 解绑
   useEffect(() => {
-    initCodeBlocks();
-  }, []);
+    const dispose = initCodeBlocks();
+    return dispose;
+  }, [contentKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -326,7 +328,6 @@ export default function ArticleDetail() {
             return null;
           }
         };
-        // 强制重新渲染以应用高亮
         setContentKey((k) => k + 1);
       }
     })();
@@ -414,6 +415,7 @@ export default function ArticleDetail() {
             dangerouslySetInnerHTML={{
               __html: addHeadingIds(
                 markdownToHtml(post.content, { highlighter: highlighterRef.current ?? undefined }),
+                post.content,
               ),
             }}
             ref={contentRef}
