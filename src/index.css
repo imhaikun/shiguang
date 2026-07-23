@@ -502,6 +502,7 @@ body {
   min-width: 0;
   white-space: pre-wrap !important;
   word-break: break-word;
+  overflow-wrap: anywhere;
   line-height: var(--code-line-h);
   min-height: var(--code-line-h);
   padding: 0 0.25rem;
@@ -509,10 +510,34 @@ body {
   transition: background-color 0.1s ease;
   margin-left: -0.25rem;
   margin-right: -0.25rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace !important;
 }
 
 .code-line:hover {
   background: var(--gh-line-hover);
+}
+
+/* 高亮 token 也参与换行 */
+.code-line .hljs-keyword,
+.code-line .hljs-string,
+.code-line .hljs-comment,
+.code-line .hljs-title,
+.code-line .hljs-attr,
+.code-line .hljs-number,
+.code-line .hljs-built_in,
+.code-line .hljs-variable,
+.code-line .hljs-operator,
+.code-line .hljs-punctuation,
+.code-line .hljs-literal,
+.code-line .hljs-meta,
+.code-line .hljs-type,
+.code-line .hljs-name,
+.code-line .hljs-tag,
+.code-line .hljs-params,
+.code-line span {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* 空行占位，保证空行有高度，行号不串位 */
