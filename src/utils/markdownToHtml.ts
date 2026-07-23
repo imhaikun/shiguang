@@ -1,6 +1,13 @@
 export function markdownToHtml(text: string): string {
   if (!text) return "<p></p>";
 
+  const trimmed = text.trim();
+  
+  // Already HTML, return as-is
+  if (trimmed.startsWith("<")) {
+    return text;
+  }
+
   const lines = text.split("\n");
   const html: string[] = [];
   let currentParagraph: string[] = [];

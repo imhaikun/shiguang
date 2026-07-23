@@ -13,8 +13,13 @@ export default function BackToTop() {
   }, []);
 
   useEffect(() => {
+    checkScroll();
     window.addEventListener("scroll", checkScroll, { passive: true });
-    return () => window.removeEventListener("scroll", checkScroll);
+    window.addEventListener("resize", checkScroll);
+    return () => {
+      window.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
   }, [checkScroll]);
 
   return (
