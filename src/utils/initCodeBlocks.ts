@@ -1,17 +1,21 @@
 /**
- * 代码块增强：把"编辑器透传的裸 <pre><code data-language>" 和
+ * 代码块增强：把"编辑器透传的裸 <pre><code data-language>" 与
  * "markdown 渲染的 <pre><code class=language-x>" 两种来源，
  * 统一升级成 GitHub 风格容器（header + 行号 + 高亮 + 复制 + 折叠）。
  *
- * 结构由本函数在 DOM 层造（因为 marked 对原始 HTML 是透传，renderCodeBlock 钩子不触发）；
- * 交互用 document 事件委托，无论容器由谁造都能点。
- * 幂等：已包裹的 pre 跳过。
- * @returns 解绑函数，移除 document 委托监听。
+ * 高亮器由调用方传入，不再自行加载 highlight.js，避免重复加载。
+ * @returns 解绑函数。
  */
 
 const COLLAPSE_LINE_THRESHOLD = 16;
 
-/** 从 code 元素上读语言：优先 data-language，其次 class="language-x" / "hljs" 旁证。 */
+/** 高亮器类型：接收原始代码与语言名，返回 HTML 或 null。 */
+type Highlighter = (code: string, language: string) => string | null | undefined;
+
+/* ============================================================
+   工具：语言 / 解码 / 换行归一
+   ============================================================ */
+
 function detectLanguage(codeEl: HTMLElement): string {
   const fromAttr = codeEl.getAttribute("data-language");
   if (fromAttr) return fromAttr.trim().toLowerCase();
@@ -20,91 +24,146 @@ function detectLanguage(codeEl: HTMLElement): string {
   return "plaintext";
 }
 
-/** 懒加载 hljs 单例 + 语言包，与 markdownToHtml 共用同一份模块（bundler 去重）。 */
-let hljsPromise: Promise<any> | null = null;
-function loadHljs() {
-  if (hljsPromise) return hljsPromise;
-  hljsPromise = (async () => {
-    const hljs = (await import("highlight.js")).default;
-    const langs: Record<string, () => Promise<any>> = {
-      javascript: () => import("highlight.js/lib/languages/javascript"),
-      typescript: () => import("highlight.js/lib/languages/typescript"),
-      python: () => import("highlight.js/lib/languages/python"),
-      bash: () => import("highlight.js/lib/languages/bash"),
-      json: () => import("highlight.js/lib/languages/json"),
-      sql: () => import("highlight.js/lib/languages/sql"),
-      go: () => import("highlight.js/lib/languages/go"),
-      rust: () => import("highlight.js/lib/languages/rust"),
-      java: () => import("highlight.js/lib/languages/java"),
-      css: () => import("highlight.js/lib/languages/css"),
-      xml: () => import("highlight.js/lib/languages/xml"),
-      markdown: () => import("highlight.js/lib/languages/markdown"),
-      yaml: () => import("highlight.js/lib/languages/yaml"),
-      dockerfile: () => import("highlight.js/lib/languages/dockerfile"),
-    };
-    await Promise.all(
-      Object.entries(langs).map(async ([name, loader]) => {
-        if (hljs.getLanguage(name)) return;
-        try {
-          const mod = await loader();
-          hljs.registerLanguage(name, mod.default);
-        } catch {
-          /* 单个语言失败不影响整体 */
-        }
-      }),
+function decodeHtml(html: string): string {
+  const tmp = document.createElement("textarea");
+  tmp.innerHTML = html.replace(/<[^>]+>/g, "");
+  return tmp.value;
+}
+
+/** 把任意形态的换行归一成真换行 0x0A。 */
+function normalizeNewlines(s: string): string {
+  return s
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+}
+
+/** 从 code 元素还原"真实行"的纯文本数组。 */
+function extractRawLines(codeEl: HTMLElement): string[] {
+  const html = codeEl.innerHTML;
+
+  if (/<(div|p|li)\b/i.test(html)) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    const blocks = tmp.querySelectorAll(
+      ":scope > div, :scope > p, :scope > li, :scope > span.code-line",
     );
-    return hljs;
-  })();
-  return hljsPromise;
-}
-
-/** 用 hljs 高亮纯文本，返回带 span 的 HTML；失败则回退转义纯文本。 */
-function highlightText(hljs: any, text: string, lang: string): string {
-  try {
-    if (lang && lang !== "plaintext" && hljs.getLanguage(lang)) {
-      return hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;
+    if (blocks.length > 1) {
+      return Array.from(blocks).map((b) => decodeHtml(b.innerHTML));
     }
-    const auto = hljs.highlightAuto(text);
-    return auto.value;
-  } catch {
-    return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
   }
+
+  const text = normalizeNewlines(codeEl.textContent ?? "");
+  return text.replace(/\n$/, "").split("\n");
 }
 
-/** 把一个裸 pre 升级成完整容器。hljs 为 null 时先纯文本占位，后续重跑补高亮。 */
-function upgrade(pre: HTMLPreElement, hljs: any | null): void {
+/* ============================================================
+   按行拆分高亮 HTML
+   ============================================================ */
+
+function splitHighlightedByLine(highlighted: string): string[] {
+  const lines: string[] = [];
+  const openTags: string[] = [];
+  let current = "";
+  let i = 0;
+  while (i < highlighted.length) {
+    const ch = highlighted[i];
+    if (ch === "\n") {
+      lines.push(current + "</span>".repeat(openTags.length));
+      current = openTags.join("");
+      i += 1;
+    } else if (ch === "<") {
+      const end = highlighted.indexOf(">", i);
+      if (end === -1) { current += ch; i += 1; continue; }
+      const tag = highlighted.slice(i, end + 1);
+      if (tag.startsWith("</")) openTags.pop();
+      else if (!tag.endsWith("/>")) openTags.push(tag);
+      current += tag;
+      i = end + 1;
+    } else {
+      current += ch;
+      i += 1;
+    }
+  }
+  lines.push(current);
+  return lines;
+}
+
+function padLines(lines: string[], target: number): string[] {
+  if (lines.length === target) return lines;
+  if (lines.length < target) return [...lines, ...Array(target - lines.length).fill("")];
+  return lines.slice(0, target);
+}
+
+function escLine(l: string): string {
+  const e = l.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return e === "" ? " " : e;
+}
+
+/** 渲染 .code-line 行 HTML。 */
+function buildCodeLinesHtml(
+  highlighter: Highlighter | null,
+  rawLines: string[],
+  lang: string,
+): string {
+  const rawText = rawLines.join("\n");
+  if (highlighter) {
+    const highlighted = highlighter(rawText, lang);
+    if (highlighted) {
+      const hlLines = splitHighlightedByLine(highlighted);
+      return padLines(hlLines, rawLines.length)
+        .map((line) => `<span class="code-line">${line === "" ? " " : line}</span>`)
+        .join("\n");
+    }
+  }
+  return rawLines.map((l) => `<span class="code-line">${escLine(l)}</span>`).join("\n");
+}
+
+/** 造行号列。 */
+function buildLineNumbers(lineCount: number): HTMLDivElement {
+  const lineNumbers = document.createElement("div");
+  lineNumbers.className = "code-block-line-numbers";
+  lineNumbers.setAttribute("aria-hidden", "true");
+  for (let i = 1; i <= lineCount; i++) {
+    const n = document.createElement("span");
+    n.className = "code-block-line-number";
+    n.textContent = String(i);
+    lineNumbers.appendChild(n);
+  }
+  return lineNumbers;
+}
+
+/* ============================================================
+   upgrade：把一个裸 pre 升级成完整容器（三阶段 DOM 法）
+   ============================================================ */
+
+function upgrade(pre: HTMLPreElement, highlighter: Highlighter | null): void {
   const codeEl = pre.querySelector("code") as HTMLElement | null;
   if (!codeEl) return;
 
   const lang = detectLanguage(codeEl);
-  // textContent 已自动把 &gt; 解回 >，拿到的是干净源码
-  const rawText = codeEl.textContent ?? "";
-  const lines = rawText.replace(/\n$/, "").split("\n");
-  const lineCount = lines.length;
+  const rawLines = extractRawLines(codeEl);
+  const lineCount = rawLines.length;
   const isCollapsible = lineCount > COLLAPSE_LINE_THRESHOLD;
 
-  // 高亮 HTML（无 hljs 时回退转义文本，保证结构先出来）
-  const highlightedHtml = hljs
-    ? highlightText(hljs, rawText, lang)
-    : rawText
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .split("\n")
-        .map((l) => (l === "" ? " " : l))
-        .join("\n");
+  // 阶段 0：记下 pre 原位置
+  const originalParent = pre.parentNode;
+  const placeholder = document.createComment("code-block-placeholder");
+  if (originalParent) {
+    originalParent.insertBefore(placeholder, pre);
+  }
 
-  // 抹掉编辑器留下的内联 style / data-* 噪声，交给 CSS 接管
+  // 阶段 1：摘成游离节点
+  pre.remove();
   pre.removeAttribute("style");
 
-  // ── 容器 ──
+  // 阶段 2：组装容器
   const container = document.createElement("div");
   container.className = "code-block-container";
 
-  // ── header ──
   const header = document.createElement("div");
   header.className = "code-block-header";
 
@@ -144,77 +203,80 @@ function upgrade(pre: HTMLPreElement, hljs: any | null): void {
   header.appendChild(langLabel);
   header.appendChild(actions);
 
-  // ── body：行号 + 代码 ──
   const body = document.createElement("div");
   body.className = "code-block-body";
 
-  const lineNumbers = document.createElement("div");
-  lineNumbers.className = "code-block-line-numbers";
-  lineNumbers.setAttribute("aria-hidden", "true");
-  for (let i = 1; i <= lineCount; i++) {
-    const n = document.createElement("span");
-    n.className = "code-block-line-number";
-    n.textContent = String(i);
-    lineNumbers.appendChild(n);
-  }
-
-  // 把高亮 HTML 写回 code，并加 hljs 类供主题色生效
-  codeEl.innerHTML = highlightedHtml;
+  codeEl.innerHTML = buildCodeLinesHtml(highlighter, rawLines, lang);
   codeEl.classList.add("hljs");
   if (lang && lang !== "plaintext") codeEl.classList.add(`language-${lang}`);
   pre.classList.add("hljs-pre");
 
-  body.appendChild(lineNumbers);
+  body.appendChild(buildLineNumbers(lineCount));
   body.appendChild(pre);
 
   container.appendChild(header);
   container.appendChild(body);
 
-  // 折叠态展开按钮
-  let expandBtn: HTMLButtonElement | null = null;
   if (isCollapsible) {
-    expandBtn = document.createElement("button");
+    const expandBtn = document.createElement("button");
     expandBtn.type = "button";
     expandBtn.className = "code-block-expand";
     expandBtn.textContent = `展开全部 ${lineCount} 行`;
     expandBtn.setAttribute("aria-label", "展开代码");
+    expandBtn.style.display = "inline-flex";
     container.appendChild(expandBtn);
     body.classList.add("collapsed");
-    expandBtn.style.display = "inline-flex";
     if (collapseBtn) collapseBtn.textContent = "展开";
   }
 
-  // 替换原 pre 位置（pre 已被 appendChild 移入 body）
-  pre.parentNode?.insertBefore(container, pre);
+  // 阶段 3：插入到占位符位置
+  if (placeholder.parentNode) {
+    placeholder.parentNode.insertBefore(container, placeholder);
+    placeholder.parentNode.removeChild(placeholder);
+  } else if (originalParent) {
+    originalParent.appendChild(container);
+  }
 }
 
-export function initCodeBlocks(): () => void {
-  // 选两种来源：编辑器的 data-language，和 markdown 的 language-x（且未被容器包裹）
+/* ============================================================
+   入口
+   ============================================================ */
+
+export function initCodeBlocks(highlighter?: Highlighter): () => void {
+  const hl: Highlighter | null = highlighter ?? null;
+
+  // 1. 同步升级裸 pre（编辑器 HTML 透传的内容）
   const targets = document.querySelectorAll(
     ".prose-editorial pre > code[data-language], .prose-editorial pre > code[class*='language-']",
   );
-
-  // 同步先造结构（hljs 可能还没好，先纯文本占位，保证 header/行号/复制按钮立刻出现）
   targets.forEach((codeEl) => {
     const pre = codeEl.parentElement as HTMLPreElement | null;
     if (!pre || pre.closest(".code-block-container")) return; // 幂等
-    upgrade(pre, null);
+    upgrade(pre, hl);
   });
 
-  // 异步补高亮：hljs 就绪后，对刚造好的容器回填高亮 innerHTML
-  loadHljs().then((hljs) => {
+  // 2. 若高亮器可用，补高亮已存在但未高亮的代码块
+  if (hl) {
     document.querySelectorAll(".code-block-container pre > code").forEach((codeEl) => {
       const c = codeEl as HTMLElement;
-      // 已经有 hljs 高亮 span 的就跳过，避免重复高亮
-      if (c.querySelector(".hljs-keyword, .hljs-string, .hljs-comment")) return;
-      const lang = detectLanguage(c);
-      // 此时 c.textContent 仍是干净源码（占位阶段写的是转义文本，textContent 会解回）
-      const raw = c.textContent ?? "";
-      c.innerHTML = highlightText(hljs, raw, lang);
-    });
-  });
+      if (c.querySelector(".hljs-keyword, .hljs-string, .hljs-comment, .hljs-title")) return;
 
-  // ── 事件委托：复制 + 折叠/展开，挂一次在 document 上 ──
+      const lang = detectLanguage(c);
+      const rawLines = extractRawLines(c);
+      const lineCount = rawLines.length;
+
+      c.innerHTML = buildCodeLinesHtml(hl, rawLines, lang);
+
+      // 行号列若与真实行数不符，重建
+      const container = c.closest(".code-block-container");
+      const numCol = container?.querySelector(".code-block-line-numbers");
+      if (numCol && numCol.children.length !== lineCount) {
+        numCol.replaceWith(buildLineNumbers(lineCount));
+      }
+    });
+  }
+
+  // 3. 事件委托：复制 + 折叠/展开
   const onClick = (e: MouseEvent) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
@@ -223,7 +285,7 @@ export function initCodeBlocks(): () => void {
     if (copyBtn) {
       const container = copyBtn.closest(".code-block-container");
       const codeEl = container?.querySelector("pre > code");
-      const text = codeEl?.textContent ?? "";
+      const text = normalizeNewlines(codeEl?.textContent ?? "");
       navigator.clipboard.writeText(text).then(() => {
         copyBtn.classList.add("copied");
         const label = copyBtn.querySelector(".copy-text");

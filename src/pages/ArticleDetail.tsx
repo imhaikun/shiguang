@@ -202,7 +202,7 @@ export default function ArticleDetail() {
 
   // ← 改动②：依赖 [] → [contentKey]，加 cleanup 解绑
   useEffect(() => {
-    const dispose = initCodeBlocks();
+    const dispose = initCodeBlocks(highlighterRef.current ?? undefined);
     return dispose;
   }, [contentKey]);
 

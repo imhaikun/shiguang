@@ -77,6 +77,7 @@ function splitHighlightedByLine(highlighted: string): string[] {
       i += 1;
     } else if (ch === "<") {
       const end = highlighted.indexOf(">", i);
+      if (end === -1) { current += ch; i += 1; continue; }
       const tag = highlighted.slice(i, end + 1);
       if (tag.startsWith("</")) {
         openTags.pop();
