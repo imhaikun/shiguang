@@ -57,7 +57,7 @@
 @layer components {
   /* ── 排版层级 ── */
   .blog-h1 {
-    font-family: var(--tw-font-display, "Playfair Display"), "Noto Serif SC", Georgia, serif;
+    font-family: "Playfair Display", "Noto Serif SC", Georgia, serif;
     font-size: 2.5rem;
     font-weight: 700;
     line-height: 1.2;
@@ -166,14 +166,22 @@
 .prose-editorial li {
   margin-top: 0.5em;
 }
-.prose-editorial code:not(pre code) {
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+
+/* 行内代码样式（唯一来源） */
+.prose-editorial code:not(pre code):not(.hljs) {
+  font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+    "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 0.875em;
-  background: var(--blog-border);
-  padding: 0.15em 0.4em;
-  border-radius: 4px;
+  padding: 0.2em 0.4em;
+  background: rgba(175, 184, 193, 0.2);
+  border-radius: 6px;
   color: var(--blog-foreground);
 }
+.dark .prose-editorial code:not(pre code):not(.hljs) {
+  background: rgba(110, 118, 129, 0.4);
+  color: var(--blog-foreground);
+}
+
 .prose-editorial pre {
   background: var(--blog-card);
   border: 1px solid var(--blog-border);
@@ -278,6 +286,90 @@
   display: inline-block;
   transition: transform 0.2s ease;
 }
+
+/* ── 目录（D1 新增） ── */
+.toc-nav {
+  font-size: 0.8125rem;
+}
+
+.toc-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "Inter", "Noto Sans SC", sans-serif;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--blog-foreground);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--blog-border);
+}
+
+.toc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: calc(100vh - 12rem);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--blog-border) transparent;
+}
+
+.toc-list::-webkit-scrollbar {
+  width: 4px;
+}
+.toc-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.toc-list::-webkit-scrollbar-thumb {
+  background: var(--blog-border);
+  border-radius: 2px;
+}
+
+.toc-item {
+  margin: 0;
+}
+
+.toc-link {
+  display: block;
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  color: var(--blog-muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: color 0.15s ease, border-left-color 0.15s ease,
+    background-color 0.15s ease;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc-link:hover {
+  color: var(--blog-foreground);
+  border-left-color: var(--blog-muted);
+  background: rgba(16, 185, 129, 0.04);
+}
+.dark .toc-link:hover {
+  background: rgba(52, 211, 153, 0.06);
+}
+
+.toc-active .toc-link {
+  color: var(--blog-primary);
+  border-left-color: var(--blog-primary);
+  font-weight: 500;
+  background: rgba(16, 185, 129, 0.06);
+}
+.dark .toc-active .toc-link {
+  background: rgba(52, 211, 153, 0.08);
+}
+
+/* 缩进层级 */
+.toc-level-1 .toc-link { padding-left: 0.75rem; }
+.toc-level-2 .toc-link { padding-left: 1.5rem; }
+.toc-level-3 .toc-link { padding-left: 2.25rem; }
+.toc-level-4 .toc-link { padding-left: 3rem; }
+.toc-level-5 .toc-link { padding-left: 3.75rem; }
+.toc-level-6 .toc-link { padding-left: 4.5rem; }
 
 /* ── GitHub 风格代码块 ── */
 .code-block-container {
@@ -690,4 +782,10 @@
 
 .prose-editorial tbody tr:hover {
   background: rgba(0, 0, 0, 0.02);
+}
+
+/* ── 标题锚点滚动偏移（D3 新增） ── */
+.prose-editorial h2,
+.prose-editorial h3 {
+  scroll-margin-top: 5rem;
 }

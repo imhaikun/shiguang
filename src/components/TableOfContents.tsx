@@ -1,67 +1,50 @@
 import { useEffect, useState, useCallback } from "react";
 import { List } from "lucide-react";
+import { extractHeadings, type TocHeading } from "@/utils/headings";
 
-interface Heading {
-  id: string;
-  text: string;
-  level: number;
+interface TableOfContentsProps {
+  content: string;
 }
 
-export default function TableOfContents({ content }: { content: string }) {
-  const [headings, setHeadings] = useState<Heading[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  const extractHeadings = useCallback((html: string) => {
-    const headingRegex = /<h([1-3])[^>]*>([^<]+)<\/h[1-3]>/gi;
-    const matches: Heading[] = [];
-    let match;
-
-    while ((match = headingRegex.exec(html)) !== null) {
-      const level = parseInt(match[1]);
-      const text = match[2].replace(/<[^>]*>/g, "").trim();
-      if (text) {
-        const id = text
-          .toLowerCase()
-          .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
-          .replace(/^-|-$/g, "");
-        matches.push({ id: `toc-${id}`, text, level });
-      }
-    }
-
-    return matches;
-  }, []);
+export default function TableOfContents({ content }: TableOfContentsProps) {
+  const [headings, setHeadings] = useState<TocHeading[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
 
   useEffect(() => {
     const extracted = extractHeadings(content);
     setHeadings(extracted);
-  }, [content, extractHeadings]);
+  }, [content]);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const id = entry.target.getAttribute("id");
-            if (id) {
-              setActiveId(id);
-            }
-          }
-        });
-      },
-      { rootMargin: "-20% 0px -30% 0px", threshold: 0.1 }
-    );
+  const handleScroll = useCallback(() => {
+    const headingElements = headings
+      .map((h) => document.getElementById(h.id))
+      .filter(Boolean) as HTMLElement[];
 
-    document.querySelectorAll("[id^='toc-']").forEach((heading) => {
-      observer.observe(heading);
-    });
+    if (headingElements.length === 0) return;
 
-    return () => observer.disconnect();
+    let current = headingElements[0]?.id ?? "";
+    for (const el of headingElements) {
+      const rect = el.getBoundingClientRect();
+      if (rect.top <= 120) {
+        current = el.id;
+      } else {
+        break;
+      }
+    }
+    setActiveId(current);
   }, [headings]);
 
-  const handleClick = useCallback((id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  const handleClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
       setActiveId(id);
     }
   }, []);
@@ -69,39 +52,29 @@ export default function TableOfContents({ content }: { content: string }) {
   if (headings.length === 0) return null;
 
   return (
-    <div
-      className="rounded-md p-4"
-      style={{
-        background: "var(--blog-card)",
-        border: "1px solid var(--blog-border)",
-      }}
-    >
-      <div
-        className="flex items-center gap-2 mb-3"
-        style={{ color: "var(--blog-foreground)" }}
-      >
+    <nav className="toc-nav">
+      <div className="toc-title">
         <List className="h-4 w-4" />
-        <span className="font-semibold text-sm">目录</span>
+        <span>目录</span>
       </div>
-      <nav className="space-y-1 max-h-[400px] overflow-y-auto">
-        {headings.map((heading, index) => (
-          <button
-            key={`${heading.id}-${index}`}
-            onClick={() => handleClick(heading.id)}
-            className="block w-full text-left transition-colors hover:text-primary"
-            style={{
-              color: activeId === heading.id ? "var(--blog-primary)" : "var(--blog-muted-foreground)",
-              padding: "3px 8px",
-              paddingLeft: `${(heading.level - 1) * 16 + 8}px`,
-              fontSize: "13px",
-              borderRadius: "4px",
-              background: activeId === heading.id ? "var(--blog-primary)/5" : "transparent",
-            }}
+      <ul className="toc-list">
+        {headings.map((heading) => (
+          <li
+            key={heading.id}
+            className={`toc-item toc-level-${heading.level} ${
+              activeId === heading.id ? "toc-active" : ""
+            }`}
           >
-            {heading.text}
-          </button>
+            <a
+              href={`#${heading.id}`}
+              onClick={(e) => handleClick(e, heading.id)}
+              className="toc-link"
+            >
+              {heading.text}
+            </a>
+          </li>
         ))}
-      </nav>
-    </div>
+      </ul>
+    </nav>
   );
 }
