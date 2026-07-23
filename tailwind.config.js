@@ -33,8 +33,9 @@ export default {
       },
       fontFamily: {
         display: ['"Playfair Display"', '"Noto Serif SC"', "Georgia", "serif"],
-        sans: ['"Inter"', '"Noto Sans SC"', "-apple-system", '"Segoe UI"', "sans-serif"],
+        sans: ['"Noto Serif SC"', '"Noto Sans SC"', '"Songti SC"', "Georgia", '"Times New Roman"', "serif"],
         mono: ['"JetBrains Mono"', '"Fira Code"', "monospace"],
+        sansOrig: ['"Inter"', '"Noto Sans SC"', "-apple-system", '"Segoe UI"', "sans-serif"],
       },
       borderRadius: {
         sm: "4px",
