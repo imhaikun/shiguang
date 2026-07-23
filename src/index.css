@@ -497,7 +497,8 @@ body {
 
 /* 代码列 */
 .code-block-body pre {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
   padding: var(--code-pad) var(--code-pad) var(--code-pad) 1rem;
   border: none;
@@ -522,7 +523,8 @@ body {
 /* 每一行代码 */
 .code-line {
   display: block !important;
-  white-space: pre !important;
+  white-space: pre-wrap !important;
+  word-break: break-word;
   line-height: var(--code-line-h);
   min-height: var(--code-line-h);
   padding: 0 0.25rem;
