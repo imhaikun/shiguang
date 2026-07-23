@@ -15,12 +15,17 @@ export function markdownToHtml(text: string): string {
   const flushParagraph = () => {
     if (currentParagraph.length > 0) {
       const paragraphText = currentParagraph.join(" ");
+      const placeholder = "\x00INLINE_CODE_\x00";
       let processed = paragraphText
-        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/`([^`]+)`/g, (_, code) => `${placeholder}${code}${placeholder}`)
         .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
         .replace(/\*(.*?)\*/g, "<em>$1</em>")
         .replace(/~~(.*?)~~/g, "<del>$1</del>")
         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      processed = processed.split(placeholder).map((part, i) => {
+        if (i % 2 === 1) return `<code>${part}</code>`;
+        return part;
+      }).join("");
       html.push(`<p>${processed}</p>`);
       currentParagraph = [];
     }
