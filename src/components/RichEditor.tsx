@@ -129,13 +129,13 @@ function htmlToMarkdown(html: string): string {
     const lang = codeEl.getAttribute("data-language") || "";
     const code = codeEl.textContent || "";
     codeBlocks.push({ lang, code });
-    const placeholder = document.createTextNode(`\x00CODEBLOCK${codeBlocks.length - 1}\x00`);
+    const placeholder = document.createComment(`CODEBLOCK_${codeBlocks.length - 1}`);
     codeEl.replaceWith(placeholder);
   });
 
   let md = tempDiv.innerHTML;
 
-  md = md.replace(/\x00CODEBLOCK(\d+)\x00/g, (_, idx) => {
+  md = md.replace(/<!--CODEBLOCK_(\d+)-->/g, (_, idx) => {
     const { lang, code } = codeBlocks[parseInt(idx, 10)];
     return "```" + lang + "\n" + code.trim() + "\n```";
   });
