@@ -612,6 +612,14 @@ body,
   outline-offset: -2px;
 }
 
+.code-block-body.collapsed ~ .code-block-expand {
+  display: flex;
+}
+
+.code-block-body:not(.collapsed) ~ .code-block-expand {
+  display: none;
+}
+
 /* ============================================================
    通用排版组件 - .blog-h1, .blog-body, .blog-small, .blog-caption
    用于非文章正文的页面（首页、标签页、设置页等）

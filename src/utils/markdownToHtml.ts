@@ -192,83 +192,103 @@ function formatJson(code: string): string {
 
 function formatCssLike(code: string): string {
   const compact = collapseWhitespace(code);
-  let result = "";
-  let indent = 0;
-  let inComment = false;
-  let inString = false;
-  let stringChar = "";
+  const tokens: string[] = [];
   let i = 0;
-
-  const ind = (n: number) => "  ".repeat(n);
 
   while (i < compact.length) {
     const ch = compact[i];
-    const next = compact[i + 1] || "";
 
-    if (inComment) {
-      result += ch;
-      if (ch === "*" && next === "/") {
-        inComment = false;
-        result += next;
-        i += 2;
-        continue;
-      }
+    if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
       i++;
       continue;
     }
 
-    if (inString) {
-      result += ch;
-      if (ch === stringChar && compact[i - 1] !== "\\") {
-        inString = false;
+    if (ch === "/" && compact[i + 1] === "*") {
+      let end = compact.indexOf("*/", i + 2);
+      if (end === -1) {
+        tokens.push(compact.slice(i));
+        i = compact.length;
+      } else {
+        tokens.push(compact.slice(i, end + 2));
+        i = end + 2;
       }
-      i++;
-      continue;
-    }
-
-    if (ch === "/" && next === "*") {
-      inComment = true;
-      result += ch + next;
-      i += 2;
       continue;
     }
 
     if (ch === '"' || ch === "'") {
-      inString = true;
-      stringChar = ch;
-      result += ch;
+      let j = i + 1;
+      while (j < compact.length) {
+        if (compact[j] === "\\") {
+          j += 2;
+          continue;
+        }
+        if (compact[j] === ch) {
+          j++;
+          break;
+        }
+        j++;
+      }
+      tokens.push(compact.slice(i, j));
+      i = j;
+      continue;
+    }
+
+    if (ch === "{" || ch === "}" || ch === ";") {
+      tokens.push(ch);
       i++;
       continue;
     }
 
-    if (ch === "{") {
+    let j = i;
+    while (j < compact.length) {
+      const c = compact[j];
+      if (c === " " || c === "{" || c === "}" || c === ";" ||
+          (c === "/" && compact[j + 1] === "*") ||
+          c === '"' || c === "'") {
+        break;
+      }
+      j++;
+    }
+    tokens.push(compact.slice(i, j));
+    i = j;
+  }
+
+  let result = "";
+  let indent = 0;
+  const ind = (n: number) => "  ".repeat(Math.max(0, n));
+
+  for (let k = 0; k < tokens.length; k++) {
+    const token = tokens[k];
+
+    if (token === "{") {
+      result = result.replace(/\s+$/, "");
       result += " {\n" + ind(indent + 1);
       indent++;
-      i++;
       continue;
     }
 
-    if (ch === "}") {
+    if (token === "}") {
       indent = Math.max(0, indent - 1);
-      if (result.endsWith("\n" + ind(indent + 1))) {
-        result = result.slice(0, -(indent + 1) * 2 - 1);
-      }
+      result = result.replace(/\s+$/, "");
       result += "\n" + ind(indent) + "}";
-      if (next && next !== "}") {
-        result += "\n" + ind(indent);
-      }
-      i++;
       continue;
     }
 
-    if (ch === ";") {
+    if (token === ";") {
       result += ";\n" + ind(indent);
-      i++;
       continue;
     }
 
-    result += ch;
-    i++;
+    if (token.startsWith("/*")) {
+      result += (result && !result.endsWith("\n") ? "\n" + ind(indent) : "") + token;
+      continue;
+    }
+
+    if (result && !result.endsWith("\n") && !result.endsWith("{")) {
+      result += " ";
+    }
+
+    result += token;
   }
 
   return result.replace(/\n\s*\n\s*\n/g, "\n\n").trim();
