@@ -111,6 +111,32 @@ function parseMarkdown(text: string): string {
   return html.join("");
 }
 
+export function getRawCodeText(codeEl: Element): string {
+  let result = "";
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      result += node.textContent || "";
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as Element;
+      result += "<" + el.tagName.toLowerCase();
+      Array.from(el.attributes).forEach((attr) => {
+        result += ` ${attr.name}="${attr.value}"`;
+      });
+      const childText = el.textContent || "";
+      const hasChildren = el.children.length > 0 || (el.firstChild && el.firstChild.nodeType === Node.TEXT_NODE && childText.trim() !== "");
+      if (node.childNodes.length === 0 || (!hasChildren && childText === "")) {
+        result += " /";
+      } else {
+        result += ">";
+        Array.from(node.childNodes).forEach(walk);
+        result += "</" + el.tagName.toLowerCase() + ">";
+      }
+    }
+  };
+  Array.from(codeEl.childNodes).forEach(walk);
+  return result;
+}
+
 function htmlToMarkdown(html: string): string {
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = html;
@@ -127,7 +153,7 @@ function htmlToMarkdown(html: string): string {
   const codeBlocks: { lang: string; code: string }[] = [];
   tempDiv.querySelectorAll("pre > code").forEach((codeEl) => {
     const lang = codeEl.getAttribute("data-language") || "";
-    const code = codeEl.textContent || "";
+    const code = getRawCodeText(codeEl);
     codeBlocks.push({ lang, code });
     const placeholder = document.createComment(`CODEBLOCK_${codeBlocks.length - 1}`);
     codeEl.replaceWith(placeholder);
@@ -686,8 +712,23 @@ export default function RichEditor({
     pre.appendChild(selector);
   };
 
+  const sanitizeCodeBlocks = () => {
+    if (!editorRef.current) return;
+    const preCodes = editorRef.current.querySelectorAll("pre > code");
+    preCodes.forEach((codeEl) => {
+      const hasElements = codeEl.querySelectorAll("*").length > 0;
+      if (hasElements) {
+        const lang = codeEl.getAttribute("data-language") || "";
+        const rawText = getRawCodeText(codeEl);
+        codeEl.textContent = rawText;
+        if (lang) codeEl.setAttribute("data-language", lang);
+      }
+    });
+  };
+
   const handleRichInput = () => {
     if (editorRef.current) {
+      sanitizeCodeBlocks();
       const cleanHtml = getCleanHTML(editorRef.current);
       onChange(cleanHtml);
       updateActiveFormats();
