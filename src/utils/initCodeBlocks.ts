@@ -48,11 +48,27 @@ function extractRawLines(codeEl: HTMLElement): string[] {
   if (/<(div|p|li)\b/i.test(html)) {
     const tmp = document.createElement("div");
     tmp.innerHTML = html;
+
+    const codeLines = tmp.querySelectorAll(":scope > div > span.code-line");
+    if (codeLines.length > 0) {
+      return Array.from(codeLines).map((b) => {
+        const span = b as HTMLElement;
+        return normalizeNewlines(span.textContent ?? "").replace(/\n$/, "");
+      });
+    }
+
     const blocks = tmp.querySelectorAll(
       ":scope > div, :scope > p, :scope > li, :scope > span.code-line",
     );
     if (blocks.length > 1) {
-      return Array.from(blocks).map((b) => decodeHtml(b.innerHTML));
+      return Array.from(blocks).map((b) => {
+        const el = b as HTMLElement;
+        const codeLine = el.querySelector(":scope > span.code-line");
+        if (codeLine) {
+          return normalizeNewlines((codeLine as HTMLElement).textContent ?? "").replace(/\n$/, "");
+        }
+        return decodeHtml(el.innerHTML);
+      });
     }
   }
 
