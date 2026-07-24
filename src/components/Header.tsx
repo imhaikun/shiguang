@@ -1,6 +1,6 @@
 import { Link, NavLink } from "react-router-dom";
 import { Moon, Sun, Monitor, ChevronDown, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { cn } from "@/lib/utils";
@@ -26,9 +26,11 @@ export default function Header() {
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  if (!loaded) {
-    void loadSettings();
-  }
+  useEffect(() => {
+    if (!loaded) {
+      void loadSettings();
+    }
+  }, [loaded, loadSettings]);
 
   const getCurrentIcon = () => {
     if (mode === "auto") return Monitor;

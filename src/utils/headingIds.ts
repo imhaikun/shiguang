@@ -5,7 +5,7 @@
 export function addHeadingIds(html: string, _markdown?: string): string {
   const slugs = new Map<string, number>();
 
-  return html.replace(/<h([1-6])>(.*?)<\/h\1>/gi, (_match, level, content) => {
+  return html.replace(/<h([1-6])([^>]*)>(.*?)<\/h\1>/gi, (_match, level, _attrs, content) => {
     const text = content.replace(/<[^>]*>/g, "").trim();
     const id = slugify(text, slugs);
     return `<h${level} id="${id}">${content}</h${level}>`;

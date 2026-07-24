@@ -38,6 +38,7 @@ interface Post {
   tags: string[];
   category?: string;
   featured?: boolean;
+  status?: "draft" | "published";
 }
 
 interface Category {
@@ -329,7 +330,7 @@ function jsonResponse(data: any, status = 200): Response {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, x-admin-request",
     },
   });
 }
@@ -428,7 +429,7 @@ export default {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
+          "Access-Control-Allow-Headers": "Content-Type, x-admin-request",
         },
       });
     }
@@ -464,7 +465,7 @@ export default {
       const users = await readUsers(env.USERS_KV);
       const adminIndex = users.findIndex(u => u.username === "admin");
       if (adminIndex !== -1) {
-        users[adminIndex].password = "admin";
+        users[adminIndex].password = bcrypt.hashSync("admin", 10);
         await env.USERS_KV.put(USERS_KEY, JSON.stringify(users));
         return jsonResponse({ success: true, message: "管理员密码已重置为 admin" });
       }
@@ -637,6 +638,17 @@ export default {
     // 获取文章列表
     if (path === "/api/posts" && method === "GET") {
       const posts = await readPosts(env.USERS_KV);
+      // 只返回已发布的文章（草稿不显示在公开列表）
+      const published = posts.filter(p => p.status !== "draft");
+      const sorted = [...published].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      return jsonResponse({ success: true, posts: sorted });
+    }
+
+    // 获取所有文章（含草稿，管理后台用）
+    if (path === "/api/posts/all" && method === "GET") {
+      const posts = await readPosts(env.USERS_KV);
       const sorted = [...posts].sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );
@@ -649,15 +661,20 @@ export default {
       const slug = decodeURIComponent(postDetailMatch[1]);
       const posts = await readPosts(env.USERS_KV);
       const post = posts.find((p) => p.slug === slug);
-      if (post) {
-        return jsonResponse({ success: true, post });
+      if (!post) {
+        return jsonResponse({ success: false, message: "文章不存在" }, 404);
       }
-      return jsonResponse({ success: false, message: "文章不存在" }, 404);
+      // 草稿文章仅在管理后台请求时返回
+      const isAdmin = request.headers.get("x-admin-request") === "true";
+      if (post.status === "draft" && !isAdmin) {
+        return jsonResponse({ success: false, message: "文章不存在" }, 404);
+      }
+      return jsonResponse({ success: true, post });
     }
 
     // 创建文章
     if (path === "/api/posts" && method === "POST") {
-      const { title, date, excerpt, content, tags, featured } = await request.json();
+      const { title, date, excerpt, content, tags, featured, category, status } = await request.json();
       if (!title || !title.trim()) {
         return jsonResponse({ success: false, message: "文章标题不能为空" }, 400);
       }
@@ -682,6 +699,8 @@ export default {
         content,
         tags: Array.isArray(tags) ? tags : [],
         featured: !!featured,
+        category: category || undefined,
+        status: status === "published" ? "published" : "draft",
       };
       posts.push(newPost);
       await writePosts(env.USERS_KV, posts);
@@ -692,7 +711,7 @@ export default {
     const postUpdateMatch = path.match(/^\/api\/posts\/([^/]+)$/);
     if (postUpdateMatch && method === "PUT") {
       const slug = decodeURIComponent(postUpdateMatch[1]);
-      const { title, date, excerpt, content, tags, featured } = await request.json();
+      const { title, date, excerpt, content, tags, featured, category, status } = await request.json();
       const posts = await readPosts(env.USERS_KV);
       const index = posts.findIndex((p) => p.slug === slug);
       if (index === -1) {
@@ -706,6 +725,8 @@ export default {
         content: content ?? posts[index].content,
         tags: Array.isArray(tags) ? tags : posts[index].tags,
         featured: featured !== undefined ? !!featured : posts[index].featured,
+        category: category !== undefined ? category : posts[index].category,
+        status: status !== undefined ? status : posts[index].status,
       };
       await writePosts(env.USERS_KV, posts);
       return jsonResponse({ success: true, post: posts[index] });
@@ -899,11 +920,11 @@ export default {
       });
 
       if (changed) {
-      await writePosts(env.USERS_KV, posts);
-      return jsonResponse({ success: true, message: "标签已删除" });
+        await writePosts(env.USERS_KV, posts);
+        return jsonResponse({ success: true, message: "标签已删除" });
+      }
+      return jsonResponse({ success: false, message: "标签不存在" }, 404);
     }
-    return jsonResponse({ success: false, message: "标签不存在" }, 404);
-  }
 
   // 获取分类列表
   if (path === "/api/categories" && method === "GET") {

@@ -643,11 +643,11 @@ app.get("/api/reset-posts", (_req, res) => {
 
 // 重置管理员密码
 app.get("/api/reset-password", (_req, res) => {
-  const users = readUsers();
-  const adminIndex = users.findIndex(u => u.username === "admin");
+  const db = readDB();
+  const adminIndex = db.users.findIndex(u => u.username === "admin");
   if (adminIndex !== -1) {
-    users[adminIndex].password = "admin";
-    writeUsers(users);
+    db.users[adminIndex].password = "admin";
+    writeDB(db);
     res.json({ success: true, message: "管理员密码已重置为 admin" });
   } else {
     res.status(404).json({ success: false, message: "管理员用户不存在" });
@@ -887,12 +887,12 @@ function writeSettings(settings: any) {
   fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf-8");
 }
 
-app.get("/api/settings", (_req, res) => {
+app.get("/api/site-settings", (_req, res) => {
   const settings = readSettings();
   res.json({ success: true, settings });
 });
 
-app.put("/api/settings", (req, res) => {
+app.put("/api/site-settings", (req, res) => {
   const settings = { ...readSettings(), ...req.body };
   writeSettings(settings);
   res.json({ success: true, settings });

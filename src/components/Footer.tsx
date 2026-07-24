@@ -1,12 +1,15 @@
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 export default function Footer() {
   const { settings, loaded, loadSettings } = useSiteSettings();
 
-  if (!loaded) {
-    void loadSettings();
-  }
+  useEffect(() => {
+    if (!loaded) {
+      void loadSettings();
+    }
+  }, [loaded, loadSettings]);
 
   return (
     <footer className="border-t border-border mt-10">

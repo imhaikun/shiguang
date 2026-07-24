@@ -19,8 +19,6 @@ import {
   Redo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import hljs from "highlight.js";
-import "highlight.js/styles/github.css";
 
 function getApiBase(): string {
   if (import.meta.env.DEV) return "";
@@ -53,6 +51,16 @@ function parseMarkdown(text: string): string {
   let inCodeBlock = false;
   let codeLang = "";
   let codeContent: string[] = [];
+  let listType: "ul" | "ol" | null = null;
+  let listItems: string[] = [];
+
+  const flushList = () => {
+    if (listType && listItems.length > 0) {
+      html.push(`<${listType}>${listItems.map(li => `<li>${li}</li>`).join("")}</${listType}>`);
+      listType = null;
+      listItems = [];
+    }
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -67,6 +75,7 @@ function parseMarkdown(text: string): string {
         codeContent = [];
       } else {
         flushParagraph();
+        flushList();
         inCodeBlock = true;
         codeLang = line.substring(3).trim();
       }
@@ -80,33 +89,47 @@ function parseMarkdown(text: string): string {
 
     if (line.startsWith("# ")) {
       flushParagraph();
+      flushList();
       html.push(`<h1>${line.substring(2)}</h1>`);
     } else if (line.startsWith("## ")) {
       flushParagraph();
+      flushList();
       html.push(`<h2>${line.substring(3)}</h2>`);
     } else if (line.startsWith("### ")) {
       flushParagraph();
+      flushList();
       html.push(`<h3>${line.substring(4)}</h3>`);
     } else if (line.startsWith("> ")) {
       flushParagraph();
+      flushList();
       html.push(`<blockquote>${line.substring(2)}</blockquote>`);
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
       flushParagraph();
-      html.push(`<ul><li>${line.substring(2)}</li></ul>`);
+      if (listType !== "ul") {
+        flushList();
+        listType = "ul";
+      }
+      listItems.push(line.substring(2));
     } else if (/^\d+\. /.test(line)) {
       flushParagraph();
       const match = line.match(/^\d+\. (.*)$/);
       if (match) {
-        html.push(`<ol><li>${match[1]}</li></ol>`);
+        if (listType !== "ol") {
+          flushList();
+          listType = "ol";
+        }
+        listItems.push(match[1]);
       }
     } else if (line.trim() === "") {
       flushParagraph();
+      flushList();
     } else {
       currentParagraph.push(line);
     }
   }
 
   flushParagraph();
+  flushList();
 
   return html.join("");
 }
