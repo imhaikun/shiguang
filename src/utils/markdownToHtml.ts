@@ -125,6 +125,7 @@ const FORMAT_LANGUAGES = new Set([
 const BRACE_LANGUAGES = new Set([
   "javascript", "typescript", "js", "ts",
   "go", "rust", "java", "c", "cpp", "csharp", "cs",
+  "php",
 ]);
 
 function shouldFormat(lang: string): boolean {
@@ -170,6 +171,10 @@ function isTooCompact(code: string, language: string): boolean {
     return lines.length <= 3;
   }
 
+  if (lang === "yaml" || lang === "yml") {
+    return lines.length <= 5;
+  }
+
   return multiSemiLines > 0 || multiBraceLines > 0 ||
     totalSemicolons / Math.max(lines.length, 1) > 1.2 ||
     totalBraces / Math.max(lines.length, 1) > 0.8;
@@ -186,6 +191,9 @@ function formatCode(code: string, language: string): string {
   }
   if (lang === "python" || lang === "py") {
     return formatPython(code);
+  }
+  if (lang === "yaml" || lang === "yml") {
+    return formatYaml(code);
   }
   if (BRACE_LANGUAGES.has(lang) || lang === "css" || lang === "scss" || lang === "less" || lang === "style") {
     return formatBraceCode(code);
@@ -464,6 +472,148 @@ function formatSql(code: string): string {
   return result.trim();
 }
 
+function formatYaml(code: string): string {
+  const lines = code.split("\n").map((l) => l.replace(/\r/g, ""));
+  const result: string[] = [];
+  let indent = 0;
+  const ind = (n: number) => "  ".repeat(Math.max(0, n));
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      result.push("");
+      continue;
+    }
+
+    if (trimmed.startsWith("#")) {
+      result.push(ind(indent) + trimmed);
+      continue;
+    }
+
+    if (trimmed.startsWith("- ")) {
+      result.push(ind(indent) + trimmed);
+      continue;
+    }
+
+    const keyMatch = trimmed.match(/^([\w.-]+)\s*:/);
+    if (keyMatch) {
+      const key = keyMatch[1];
+      const rest = trimmed.slice(key.length + 1).trim();
+
+      if (rest === "" || rest === "{}" || rest === "[]" || rest === "|" || rest === ">") {
+        result.push(ind(indent) + key + ":");
+        indent++;
+      } else {
+        result.push(ind(indent) + key + ": " + rest);
+      }
+    } else {
+      result.push(ind(indent) + trimmed);
+      indent = Math.max(0, indent - 1);
+    }
+  }
+
+  return result.join("\n").replace(/\n\s*\n\s*\n/g, "\n\n").trim();
+}
+
+/** 根据代码内容自动识别编程语言 */
+function detectLanguage(code: string): string {
+  const c = code.trim();
+  if (!c) return "plaintext";
+
+  const scores: Record<string, number> = {};
+
+  const score = (lang: string, points: number) => {
+    scores[lang] = (scores[lang] || 0) + points;
+  };
+
+  if (/^\s*#!.*\/bin\/(bash|sh|zsh|fish)/m.test(c)) {
+    score("bash", 10);
+  }
+  if (/^\s*#!.*\/usr\/bin\/env\s+(python|python3|node)/im.test(c)) {
+    score("python", 10);
+  }
+
+  if (/^\s*services\s*:/m.test(c) && /^\s*image\s*:/m.test(c)) {
+    score("yaml", 10);
+  }
+  if (/^\s*apiVersion\s*:/m.test(c) && /^\s*kind\s*:/m.test(c)) {
+    score("yaml", 10);
+  }
+
+  if (/\b(SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM|CREATE\s+TABLE|DROP\s+TABLE|ALTER\s+TABLE)\b/i.test(c) &&
+      /\b(FROM|WHERE|JOIN|ON|GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT|UNION)\b/i.test(c)) {
+    score("sql", 8);
+  }
+
+  if (/\b(function|const|let|var|return|if|else|for|while|class|import|export|default|new|await|async|typeof|interface|implements|public|private|protected|extends)\b/.test(c)) {
+    score("typescript", 5);
+    score("javascript", 5);
+  }
+  if (/\b(const|let|var|return|function|class|import|export|default|new|await|async)\b/.test(c)) {
+    score("javascript", 3);
+  }
+  if (/: \w+/.test(c) && /interface|implements|:\s*(string|number|boolean|void|any)\b/.test(c)) {
+    score("typescript", 4);
+  }
+
+  if (/\b(def|class|import|from|print|return|if|elif|else|for|while|try|except|with|lambda|self|__init__|True|False|None)\b/.test(c)) {
+    score("python", 6);
+  }
+  if (/:$/.test(c) && /\bdef\b/.test(c)) {
+    score("python", 4);
+  }
+
+  if (/\b(package|import|func|struct|interface|map|range|chan|defer|go|select|case|default|type)\b/.test(c)) {
+    score("go", 7);
+  }
+
+  if (/\b(fn|let|mut|pub|use|mod|impl|trait|struct|enum|match|crate|self|super)\b/.test(c)) {
+    score("rust", 7);
+  }
+
+  if (/\b(public|private|protected|class|interface|extends|implements|void|static|final|abstract|try|catch|throw|new|return|if|else|for|while|switch|case)\b/.test(c)) {
+    score("java", 6);
+  }
+
+  if (/@\w+\s*\n/.test(c) && /\b(package|import|class|interface|public|private|protected|void|static|final)\b/.test(c)) {
+    score("java", 5);
+  }
+
+  if (/\b(using|namespace|class|struct|public|private|protected|template|typename|virtual|override|namespace|std)\b/.test(c)) {
+    score("cpp", 6);
+  }
+
+  if (/^\s*<!DOCTYPE|<html|<head|<body|<div|<table|<tr|<td|<ul|<li|<h[1-6]>|<p|<span|<img|<a[\s>]/im.test(c)) {
+    score("html", 10);
+  }
+
+  if (/<\?php|\\\$\w+|echo\s+['"]|->\w+/.test(c) && /\b(function|class|interface|extends|implements|public|private|protected|static|final|const|return|if|else|for|foreach|while|try|catch|namespace|use)\b/.test(c)) {
+    score("php", 10);
+  }
+
+  if (/{[^}]*:[^}]*;}/.test(c) && /[.#]?[\w-]+\s*\{/.test(c)) {
+    score("css", 8);
+  }
+  if (/{[^}]*:[^}]*;}/.test(c) && /@media|@keyframes|@supports/.test(c)) {
+    score("css", 5);
+  }
+
+  if (/^\s*[\w-]+\s*:/m.test(c) && !/[{}\[\]]/.test(c) && !/;$/.test(c) && /\n/.test(c)) {
+    score("yaml", 6);
+  }
+
+  if (/^\s*(echo|printf|read|if|then|else|fi|for|do|done|while|case|esac|function|return|export|local|declare|source)\b/m.test(c)) {
+    score("bash", 5);
+  }
+
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  if (sorted.length === 0 || sorted[0][1] < 5) {
+    return "plaintext";
+  }
+
+  return sorted[0][0];
+}
+
 /** 渲染 GitHub 风格代码块：头部（语言 + 复制）/ 行号列 / 代码区 / 可选折叠 */
 function renderCodeBlock(
   rawCode: string,
@@ -473,12 +623,17 @@ function renderCodeBlock(
   const collapseAfter = options.collapseAfter ?? DEFAULT_COLLAPSE_AFTER;
 
   let normalizedCode = normalizeNewlines(rawCode);
+  let detectedLang = language;
 
-  if (shouldFormat(language) && isTooCompact(normalizedCode, language)) {
-    normalizedCode = formatCode(normalizedCode, language);
+  if (!detectedLang || detectedLang === "plaintext") {
+    detectedLang = detectLanguage(normalizedCode);
   }
 
-  const highlighted = options.highlighter?.(normalizedCode, language);
+  if (shouldFormat(detectedLang) && isTooCompact(normalizedCode, detectedLang)) {
+    normalizedCode = formatCode(normalizedCode, detectedLang);
+  }
+
+  const highlighted = options.highlighter?.(normalizedCode, detectedLang);
   const lines = highlighted
     ? splitHighlightedByLine(highlighted)
     : normalizedCode.split("\n").map(escapeHtml);
@@ -496,7 +651,7 @@ function renderCodeBlock(
   return [
     `<div class="code-block-container">`,
     `<div class="code-block-header">`,
-    `<span class="code-block-lang">${escapeHtml(language.toLowerCase())}</span>`,
+    `<span class="code-block-lang">${escapeHtml(detectedLang.toLowerCase())}</span>`,
     `<button type="button" class="code-block-copy" aria-label="复制代码">` +
       `<svg class="copy-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path fill="currentColor" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>` +
       `<svg class="check-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M13.78 4.22a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0L3.22 8.28a.75.75 0 0 1 1.06-1.06L6 8.94l5.72-5.72a.75.75 0 0 1 1.06 0Z"/></svg>` +
@@ -504,7 +659,7 @@ function renderCodeBlock(
       `</button>`,
     `</div>`,
     `<div class="code-block-body${isCollapsed ? " collapsed" : ""}">`,
-    `<div class="code-block-code-area"><code class="language-${escapeHtml(language)} hljs">${codeRows}</code></div>`,
+    `<div class="code-block-code-area"><code class="language-${escapeHtml(detectedLang)} hljs">${codeRows}</code></div>`,
     `</div>`,
     isCollapsed
       ? `<button type="button" class="code-block-expand" aria-label="展开代码块">` +
