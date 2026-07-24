@@ -127,6 +127,35 @@ function hasRealNewlines(code: string): boolean {
   return newlineCount > 2;
 }
 
+function isTooCompact(code: string, language: string): boolean {
+  const lang = language.toLowerCase();
+  const lines = code.trim().split("\n");
+
+  if (lines.length <= 1) return true;
+
+  let totalSemicolons = 0;
+  let multiSemiLines = 0;
+
+  for (const line of lines) {
+    const clean = line.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*/g, "");
+    const count = (clean.match(/;/g) || []).length;
+    totalSemicolons += count;
+    if (count > 1) multiSemiLines++;
+  }
+
+  if (totalSemicolons === 0) return false;
+
+  if (lang === "json") {
+    return lines.length <= 3;
+  }
+
+  if (lang === "sql") {
+    return lines.length <= 3;
+  }
+
+  return multiSemiLines > 0 || totalSemicolons / lines.length > 1.2;
+}
+
 function formatCode(code: string, language: string): string {
   const lang = language.toLowerCase();
 
@@ -142,6 +171,16 @@ function formatCode(code: string, language: string): string {
   return code;
 }
 
+function collapseWhitespace(code: string): string {
+  return code
+    .replace(/\r\n/g, "\n")
+    .replace(/\n\s+/g, " ")
+    .replace(/\s+\n/g, " ")
+    .replace(/\n+/g, " ")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
+
 function formatJson(code: string): string {
   try {
     const obj = JSON.parse(code);
@@ -152,6 +191,7 @@ function formatJson(code: string): string {
 }
 
 function formatCssLike(code: string): string {
+  const compact = collapseWhitespace(code);
   let result = "";
   let indent = 0;
   let inComment = false;
@@ -161,9 +201,9 @@ function formatCssLike(code: string): string {
 
   const ind = (n: number) => "  ".repeat(n);
 
-  while (i < code.length) {
-    const ch = code[i];
-    const next = code[i + 1] || "";
+  while (i < compact.length) {
+    const ch = compact[i];
+    const next = compact[i + 1] || "";
 
     if (inComment) {
       result += ch;
@@ -179,7 +219,7 @@ function formatCssLike(code: string): string {
 
     if (inString) {
       result += ch;
-      if (ch === stringChar && code[i - 1] !== "\\") {
+      if (ch === stringChar && compact[i - 1] !== "\\") {
         inString = false;
       }
       i++;
@@ -266,7 +306,7 @@ function renderCodeBlock(
 
   let normalizedCode = normalizeNewlines(rawCode);
 
-  if (shouldFormat(language) && !hasRealNewlines(normalizedCode)) {
+  if (shouldFormat(language) && isTooCompact(normalizedCode, language)) {
     normalizedCode = formatCode(normalizedCode, language);
   }
 
