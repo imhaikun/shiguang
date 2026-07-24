@@ -115,6 +115,16 @@ const FORMAT_LANGUAGES = new Set([
   "css", "scss", "less", "style",
   "json",
   "sql",
+  "javascript", "typescript", "js", "ts",
+  "go", "rust", "java", "c", "cpp", "csharp", "cs",
+  "python", "py",
+  "bash", "shell", "sh",
+  "yaml", "yml",
+]);
+
+const BRACE_LANGUAGES = new Set([
+  "javascript", "typescript", "js", "ts",
+  "go", "rust", "java", "c", "cpp", "csharp", "cs",
 ]);
 
 function shouldFormat(lang: string): boolean {
@@ -135,25 +145,34 @@ function isTooCompact(code: string, language: string): boolean {
 
   let totalSemicolons = 0;
   let multiSemiLines = 0;
+  let totalBraces = 0;
+  let multiBraceLines = 0;
 
   for (const line of lines) {
     const clean = line.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*/g, "");
-    const count = (clean.match(/;/g) || []).length;
-    totalSemicolons += count;
-    if (count > 1) multiSemiLines++;
+    const semiCount = (clean.match(/;/g) || []).length;
+    totalSemicolons += semiCount;
+    if (semiCount > 1) multiSemiLines++;
+
+    const openBraces = (clean.match(/\{/g) || []).length;
+    const closeBraces = (clean.match(/\}/g) || []).length;
+    const braceCount = openBraces + closeBraces;
+    totalBraces += braceCount;
+    if (braceCount > 1) multiBraceLines++;
   }
 
-  if (totalSemicolons === 0) return false;
+  if (totalSemicolons === 0 && totalBraces === 0) {
+    if (lines.length <= 3) return true;
+    return false;
+  }
 
-  if (lang === "json") {
+  if (lang === "json" || lang === "sql") {
     return lines.length <= 3;
   }
 
-  if (lang === "sql") {
-    return lines.length <= 3;
-  }
-
-  return multiSemiLines > 0 || totalSemicolons / lines.length > 1.2;
+  return multiSemiLines > 0 || multiBraceLines > 0 ||
+    totalSemicolons / Math.max(lines.length, 1) > 1.2 ||
+    totalBraces / Math.max(lines.length, 1) > 0.8;
 }
 
 function formatCode(code: string, language: string): string {
@@ -165,8 +184,11 @@ function formatCode(code: string, language: string): string {
   if (lang === "sql") {
     return formatSql(code);
   }
-  if (lang === "css" || lang === "scss" || lang === "less" || lang === "style") {
-    return formatCssLike(code);
+  if (lang === "python" || lang === "py") {
+    return formatPython(code);
+  }
+  if (BRACE_LANGUAGES.has(lang) || lang === "css" || lang === "scss" || lang === "less" || lang === "style") {
+    return formatBraceCode(code);
   }
   return code;
 }
@@ -190,7 +212,7 @@ function formatJson(code: string): string {
   }
 }
 
-function formatCssLike(code: string): string {
+function formatBraceCode(code: string): string {
   const compact = collapseWhitespace(code);
   const tokens: string[] = [];
   let i = 0;
@@ -215,14 +237,27 @@ function formatCssLike(code: string): string {
       continue;
     }
 
-    if (ch === '"' || ch === "'") {
+    if (ch === "/" && compact[i + 1] === "/") {
+      let end = compact.indexOf("\n", i + 2);
+      if (end === -1) {
+        tokens.push(compact.slice(i));
+        i = compact.length;
+      } else {
+        tokens.push(compact.slice(i, end));
+        i = end + 1;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      const quote = ch;
       let j = i + 1;
       while (j < compact.length) {
         if (compact[j] === "\\") {
           j += 2;
           continue;
         }
-        if (compact[j] === ch) {
+        if (compact[j] === quote) {
           j++;
           break;
         }
@@ -243,8 +278,8 @@ function formatCssLike(code: string): string {
     while (j < compact.length) {
       const c = compact[j];
       if (c === " " || c === "{" || c === "}" || c === ";" ||
-          (c === "/" && compact[j + 1] === "*") ||
-          c === '"' || c === "'") {
+          (c === "/" && (compact[j + 1] === "*" || compact[j + 1] === "/")) ||
+          c === '"' || c === "'" || c === "`") {
         break;
       }
       j++;
@@ -255,6 +290,7 @@ function formatCssLike(code: string): string {
 
   let result = "";
   let indent = 0;
+  let needNewline = false;
   const ind = (n: number) => "  ".repeat(Math.max(0, n));
 
   for (let k = 0; k < tokens.length; k++) {
@@ -262,8 +298,9 @@ function formatCssLike(code: string): string {
 
     if (token === "{") {
       result = result.replace(/\s+$/, "");
-      result += " {\n" + ind(indent + 1);
+      result += " {\n";
       indent++;
+      needNewline = true;
       continue;
     }
 
@@ -271,20 +308,131 @@ function formatCssLike(code: string): string {
       indent = Math.max(0, indent - 1);
       result = result.replace(/\s+$/, "");
       result += "\n" + ind(indent) + "}";
+      needNewline = true;
       continue;
     }
 
     if (token === ";") {
-      result += ";\n" + ind(indent);
+      result += ";\n";
+      needNewline = true;
       continue;
     }
 
-    if (token.startsWith("/*")) {
-      result += (result && !result.endsWith("\n") ? "\n" + ind(indent) : "") + token;
+    if (token.startsWith("/*") || token.startsWith("//")) {
+      if (result) {
+        result = result.replace(/\s+$/, "");
+        result += "\n";
+      }
+      result += ind(indent) + token;
+      needNewline = true;
       continue;
     }
 
-    if (result && !result.endsWith("\n") && !result.endsWith("{")) {
+    if (needNewline) {
+      result += "\n" + ind(indent);
+      needNewline = false;
+    } else if (result && !result.endsWith("{") && !result.endsWith("\n")) {
+      result += " ";
+    }
+
+    result += token;
+  }
+
+  return result.replace(/\n\s*\n\s*\n/g, "\n\n").trim();
+}
+
+function formatPython(code: string): string {
+  const compact = collapseWhitespace(code);
+  let result = "";
+  let indent = 0;
+  const ind = (n: number) => "    ".repeat(Math.max(0, n));
+
+  const tokens: string[] = [];
+  let i = 0;
+
+  while (i < compact.length) {
+    const ch = compact[i];
+
+    if (ch === " " || ch === "\t") { i++; continue; }
+
+    if (ch === "#") {
+      let end = compact.indexOf("\n", i);
+      if (end === -1) { tokens.push(compact.slice(i)); i = compact.length; }
+      else { tokens.push(compact.slice(i, end)); i = end + 1; }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      if (compact[i + 1] === quote && compact[i + 2] === quote) {
+        let j = i + 3;
+        while (j < compact.length - 2) {
+          if (compact[j] === quote && compact[j + 1] === quote && compact[j + 2] === quote) {
+            j += 3;
+            break;
+          }
+          j++;
+        }
+        tokens.push(compact.slice(i, j));
+        i = j;
+        continue;
+      }
+      let j = i + 1;
+      while (j < compact.length) {
+        if (compact[j] === "\\") { j += 2; continue; }
+        if (compact[j] === quote) { j++; break; }
+        j++;
+      }
+      tokens.push(compact.slice(i, j));
+      i = j;
+      continue;
+    }
+
+    if (ch === ":" && /\s/.test(compact[i + 1] || "")) {
+      tokens.push(":");
+      i++;
+      continue;
+    }
+
+    if (ch === "\n") { i++; continue; }
+
+    let j = i;
+    while (j < compact.length) {
+      const c = compact[j];
+      if (c === " " || c === ":" || c === "#" || c === "\n" ||
+          c === '"' || c === "'") {
+        break;
+      }
+      j++;
+    }
+    tokens.push(compact.slice(i, j));
+    i = j;
+  }
+
+  let needNewline = false;
+
+  for (let k = 0; k < tokens.length; k++) {
+    const token = tokens[k];
+
+    if (token === ":") {
+      result = result.replace(/\s+$/, "");
+      result += ":\n";
+      indent++;
+      needNewline = true;
+      continue;
+    }
+
+    if (token.startsWith("#")) {
+      if (result) { result = result.replace(/\s+$/, ""); result += "\n"; }
+      result += ind(indent) + token;
+      needNewline = true;
+      continue;
+    }
+
+    if (needNewline) {
+      result += ind(indent);
+      needNewline = false;
+    } else if (result && !result.endsWith("\n")) {
       result += " ";
     }
 
