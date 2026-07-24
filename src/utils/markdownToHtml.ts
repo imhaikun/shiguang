@@ -106,6 +106,156 @@ function splitHighlightedByLine(highlighted: string): string[] {
   return lines;
 }
 
+/* ============================================================
+   代码自动格式化（仅对单行长代码生效）
+   支持：css, scss, less, json, sql
+   ============================================================ */
+
+const FORMAT_LANGUAGES = new Set([
+  "css", "scss", "less", "style",
+  "json",
+  "sql",
+]);
+
+function shouldFormat(lang: string): boolean {
+  return FORMAT_LANGUAGES.has(lang.toLowerCase());
+}
+
+function hasRealNewlines(code: string): boolean {
+  const trimmed = code.trim();
+  const newlineCount = (trimmed.match(/\n/g) || []).length;
+  return newlineCount > 2;
+}
+
+function formatCode(code: string, language: string): string {
+  const lang = language.toLowerCase();
+
+  if (lang === "json") {
+    return formatJson(code);
+  }
+  if (lang === "sql") {
+    return formatSql(code);
+  }
+  if (lang === "css" || lang === "scss" || lang === "less" || lang === "style") {
+    return formatCssLike(code);
+  }
+  return code;
+}
+
+function formatJson(code: string): string {
+  try {
+    const obj = JSON.parse(code);
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return code;
+  }
+}
+
+function formatCssLike(code: string): string {
+  let result = "";
+  let indent = 0;
+  let inComment = false;
+  let inString = false;
+  let stringChar = "";
+  let i = 0;
+
+  const ind = (n: number) => "  ".repeat(n);
+
+  while (i < code.length) {
+    const ch = code[i];
+    const next = code[i + 1] || "";
+
+    if (inComment) {
+      result += ch;
+      if (ch === "*" && next === "/") {
+        inComment = false;
+        result += next;
+        i += 2;
+        continue;
+      }
+      i++;
+      continue;
+    }
+
+    if (inString) {
+      result += ch;
+      if (ch === stringChar && code[i - 1] !== "\\") {
+        inString = false;
+      }
+      i++;
+      continue;
+    }
+
+    if (ch === "/" && next === "*") {
+      inComment = true;
+      result += ch + next;
+      i += 2;
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      inString = true;
+      stringChar = ch;
+      result += ch;
+      i++;
+      continue;
+    }
+
+    if (ch === "{") {
+      result += " {\n" + ind(indent + 1);
+      indent++;
+      i++;
+      continue;
+    }
+
+    if (ch === "}") {
+      indent = Math.max(0, indent - 1);
+      if (result.endsWith("\n" + ind(indent + 1))) {
+        result = result.slice(0, -(indent + 1) * 2 - 1);
+      }
+      result += "\n" + ind(indent) + "}";
+      if (next && next !== "}") {
+        result += "\n" + ind(indent);
+      }
+      i++;
+      continue;
+    }
+
+    if (ch === ";") {
+      result += ";\n" + ind(indent);
+      i++;
+      continue;
+    }
+
+    result += ch;
+    i++;
+  }
+
+  return result.replace(/\n\s*\n\s*\n/g, "\n\n").trim();
+}
+
+function formatSql(code: string): string {
+  const keywords = [
+    "SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "GROUP BY",
+    "HAVING", "JOIN", "LEFT JOIN", "RIGHT JOIN", "INNER JOIN",
+    "OUTER JOIN", "ON", "INSERT INTO", "VALUES", "UPDATE", "SET",
+    "DELETE FROM", "CREATE TABLE", "DROP TABLE", "ALTER TABLE",
+    "LIMIT", "OFFSET", "UNION", "UNION ALL",
+  ];
+
+  let result = code;
+
+  keywords.forEach((kw) => {
+    const regex = new RegExp(`\\b${kw.replace(" ", "\\s+")}\\b`, "gi");
+    result = result.replace(regex, "\n" + kw + " ");
+  });
+
+  result = result.replace(/,\s*/g, ",\n  ");
+  result = result.replace(/\n\s*\n/g, "\n");
+
+  return result.trim();
+}
+
 /** 渲染 GitHub 风格代码块：头部（语言 + 复制）/ 行号列 / 代码区 / 可选折叠 */
 function renderCodeBlock(
   rawCode: string,
@@ -114,8 +264,11 @@ function renderCodeBlock(
 ): string {
   const collapseAfter = options.collapseAfter ?? DEFAULT_COLLAPSE_AFTER;
 
-  // ★ 关键：先把字面量 \n 归一为真换行
-  const normalizedCode = normalizeNewlines(rawCode);
+  let normalizedCode = normalizeNewlines(rawCode);
+
+  if (shouldFormat(language) && !hasRealNewlines(normalizedCode)) {
+    normalizedCode = formatCode(normalizedCode, language);
+  }
 
   const highlighted = options.highlighter?.(normalizedCode, language);
   const lines = highlighted
