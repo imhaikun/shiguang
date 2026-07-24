@@ -533,6 +533,10 @@ function detectLanguage(code: string): string {
     score("python", 10);
   }
 
+  if (/^\s*deb\s+http/i.test(c) && /\b(main|contrib|non-free|universe|multiverse)\b/.test(c)) {
+    score("plaintext", 3);
+  }
+
   if (/^\s*services\s*:/m.test(c) && /^\s*image\s*:/m.test(c)) {
     score("yaml", 10);
   }
@@ -603,13 +607,36 @@ function detectLanguage(code: string): string {
   }
 
   const commonShellCommands = [
-    "apt", "apt-get", "yum", "dnf", "pacman", "brew", "apk",
-    "rsync", "tar", "cp", "mv", "rm", "ls", "cd", "pwd", "mkdir", "chmod", "chown",
-    "docker", "docker-compose", "kubectl", "helm", "git", "ssh", "scp", "curl", "wget",
-    "systemctl", "service", "crontab", "sudo", "passwd", "useradd", "usermod",
-    "manage-bde", "diskpart", "sfc", "chkdsk", "ipconfig", "netsh", "powershell",
-    "pip", "pip3", "npm", "yarn", "pnpm", "node", "python", "python3",
-    "cat", "grep", "awk", "sed", "find", "xargs", "sort", "uniq", "wc", "tail", "head",
+    "apt", "apt-get", "yum", "dnf", "pacman", "brew", "apk", "zypper",
+    "rsync", "tar", "cp", "mv", "rm", "ls", "cd", "pwd", "mkdir", "chmod", "chown", "chgrp",
+    "docker", "docker-compose", "kubectl", "helm", "git", "ssh", "scp", "curl", "wget", "axel", "aria2c",
+    "systemctl", "service", "crontab", "sudo", "passwd", "useradd", "usermod", "userdel", "groupadd",
+    "manage-bde", "diskpart", "sfc", "chkdsk", "ipconfig", "netsh", "powershell", "cmd",
+    "pip", "pip3", "pipenv", "npm", "yarn", "pnpm", "node", "python", "python3", "go", "rustc", "cargo",
+    "cat", "grep", "awk", "sed", "find", "xargs", "sort", "uniq", "wc", "tail", "head", "less", "more",
+    "nano", "vim", "vi", "emacs", "neovim", "nvim", "micro", "pico", "joe",
+    "sysctl", "modprobe", "lsmod", "insmod", "rmmod", "depmod", "dmesg", "journalctl",
+    "ip", "ifconfig", "route", "netstat", "ss", "ping", "traceroute", "mtr", "dig", "nslookup", "host",
+    "iptables", "nftables", "ufw", "firewalld", "fail2ban",
+    "ps", "top", "htop", "kill", "killall", "pkill", "pgrep", "pidof", "nice", "renice", "nohup",
+    "df", "du", "fdisk", "parted", "mkfs", "fsck", "mount", "umount", "lsblk", "blkid",
+    "lsof", "fuser", "strace", "ltrace", "tcpdump", "tshark", "ngrep",
+    "tar", "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "zip", "unzip", "7z",
+    "openssl", "ssh-keygen", "ssh-agent", "ssh-add", "ssh-copy-id", "sshfs",
+    "make", "cmake", "gcc", "g++", "clang", "clang++", "javac", "java", "mvn", "gradle",
+    "nginx", "apachectl", "httpd", "php", "php-fpm", "mysql", "mysqldump", "psql", "mongo", "redis-cli",
+    "composer", "bundle", "gem", "rake", "rvm", "rbenv", "conda", "poetry",
+    "terraform", "packer", "vagrant", "ansible", "ansible-playbook",
+    "rabbitmqctl", "rabbitmq-plugins",
+    "certbot", "letsencrypt", "acme.sh",
+    "nmap", "nc", "telnet", "whois",
+    "date", "cal", "bc", "seq", "shuf",
+    "env", "printenv", "set", "unset", "export", "alias", "unalias", "source", "eval", "exec",
+    "history", "clear", "exit", "logout",
+    "man", "info", "apropos", "whatis", "help", "type", "which", "whereis", "locate",
+    "mail", "mailx", "mutt",
+    "ftp", "sftp", "lftp",
+    "screen", "tmux", "byobu",
   ];
   const shellCommandPattern = new RegExp(`^(\\s*)(?:${commonShellCommands.join("|")})\\b`, "im");
   if (shellCommandPattern.test(c)) {
