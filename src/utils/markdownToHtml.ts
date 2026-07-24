@@ -155,6 +155,59 @@ function renderCodeBlock(
   ].join("");
 }
 
+function upgradeHtmlCodeBlocks(html: string, options: MarkdownOptions): string {
+  const preCodeRegex = /<pre\b[^>]*>\s*<code\b([^>]*)>([\s\S]*?)<\/code>\s*<\/pre>/gi;
+
+  return html.replace(preCodeRegex, (_match, codeAttrs: string, codeContent: string) => {
+    let language = "plaintext";
+
+    const langMatch = codeAttrs.match(/data-language="([^"]*)"/i);
+    if (langMatch) {
+      language = langMatch[1].trim().toLowerCase() || "plaintext";
+    } else {
+      const classMatch = codeAttrs.match(/class="[^"]*\blanguage-([\w+-]+)/i);
+      if (classMatch) {
+        language = classMatch[1].toLowerCase();
+      }
+    }
+
+    let lines: string[] = [];
+
+    if (/<div\b/i.test(codeContent)) {
+      const divMatches = codeContent.match(/<div\b[^>]*>([\s\S]*?)<\/div>/gi);
+      if (divMatches && divMatches.length > 0) {
+        lines = divMatches.map((div) => {
+          const inner = div.replace(/<div\b[^>]*>/i, "").replace(/<\/div>/i, "");
+          return decodeHtmlContent(inner);
+        });
+      }
+    }
+
+    if (lines.length === 0) {
+      const normalized = codeContent
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n");
+      lines = normalized.split("\n").map(decodeHtmlContent);
+    }
+
+    const decoded = lines.join("\n");
+
+    return renderCodeBlock(decoded, language, options);
+  });
+}
+
+function decodeHtmlContent(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/<[^>]+>/g, "");
+}
+
 export function markdownToHtml(
   text: string,
   options: MarkdownOptions = {},
@@ -162,9 +215,8 @@ export function markdownToHtml(
   if (!text) return "<p></p>";
   const trimmed = text.trim();
 
-  // 已经是 HTML，原样返回
   if (trimmed.startsWith("<")) {
-    return text;
+    return upgradeHtmlCodeBlocks(text, options);
   }
 
   const lines = text.split("\n");
