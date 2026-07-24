@@ -638,7 +638,10 @@ function detectLanguage(code: string): string {
     "ftp", "sftp", "lftp",
     "screen", "tmux", "byobu",
   ];
-  const shellCommandPattern = new RegExp(`^(\\s*)(?:${commonShellCommands.join("|")})\\b`, "im");
+  const escapedCommands = commonShellCommands.map((cmd) =>
+    cmd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+  );
+  const shellCommandPattern = new RegExp(`^(\\s*)(?:${escapedCommands.join("|")})\\b`, "im");
   if (shellCommandPattern.test(c)) {
     score("bash", 6);
   }
@@ -678,7 +681,9 @@ function renderCodeBlock(
     normalizedCode = formatCode(normalizedCode, detectedLang);
   }
 
-  const highlighted = options.highlighter?.(normalizedCode, detectedLang);
+  const highlighted = detectedLang !== "plaintext"
+    ? options.highlighter?.(normalizedCode, detectedLang)
+    : undefined;
   const lines = highlighted
     ? splitHighlightedByLine(highlighted)
     : normalizedCode.split("\n").map(escapeHtml);
