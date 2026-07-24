@@ -112,11 +112,9 @@ function parseMarkdown(text: string): string {
 }
 
 function htmlToMarkdown(html: string): string {
-  let md = html;
-
-  // 先移除代码语言选择器
   const tempDiv = document.createElement("div");
-  tempDiv.innerHTML = md;
+  tempDiv.innerHTML = html;
+
   tempDiv.querySelectorAll(".code-lang-selector").forEach((s) => s.remove());
   tempDiv.querySelectorAll(".code-block-wrapper").forEach((wrapper) => {
     const pre = wrapper.querySelector("pre");
@@ -125,13 +123,21 @@ function htmlToMarkdown(html: string): string {
     }
     wrapper.remove();
   });
-  md = tempDiv.innerHTML;
 
-  md = md.replace(/<pre[^>]*><code data-language="([^"]*)">([\s\S]*?)<\/code><\/pre>/g, (_, lang, code) => {
-    return "```" + (lang || "") + "\n" + code.trim() + "\n```";
+  const codeBlocks: { lang: string; code: string }[] = [];
+  tempDiv.querySelectorAll("pre > code").forEach((codeEl) => {
+    const lang = codeEl.getAttribute("data-language") || "";
+    const code = codeEl.textContent || "";
+    codeBlocks.push({ lang, code });
+    const placeholder = document.createTextNode(`\x00CODEBLOCK${codeBlocks.length - 1}\x00`);
+    codeEl.replaceWith(placeholder);
   });
-  md = md.replace(/<pre[^>]*><code>([\s\S]*?)<\/code><\/pre>/g, (_, code) => {
-    return "```\n" + code.trim() + "\n```";
+
+  let md = tempDiv.innerHTML;
+
+  md = md.replace(/\x00CODEBLOCK(\d+)\x00/g, (_, idx) => {
+    const { lang, code } = codeBlocks[parseInt(idx, 10)];
+    return "```" + lang + "\n" + code.trim() + "\n```";
   });
 
   md = md.replace(/<code[^>]*>(.*?)<\/code>/g, "`$1`");
