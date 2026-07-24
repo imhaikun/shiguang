@@ -602,8 +602,26 @@ function detectLanguage(code: string): string {
     score("yaml", 6);
   }
 
+  const commonShellCommands = [
+    "apt", "apt-get", "yum", "dnf", "pacman", "brew", "apk",
+    "rsync", "tar", "cp", "mv", "rm", "ls", "cd", "pwd", "mkdir", "chmod", "chown",
+    "docker", "docker-compose", "kubectl", "helm", "git", "ssh", "scp", "curl", "wget",
+    "systemctl", "service", "crontab", "sudo", "passwd", "useradd", "usermod",
+    "manage-bde", "diskpart", "sfc", "chkdsk", "ipconfig", "netsh", "powershell",
+    "pip", "pip3", "npm", "yarn", "pnpm", "node", "python", "python3",
+    "cat", "grep", "awk", "sed", "find", "xargs", "sort", "uniq", "wc", "tail", "head",
+  ];
+  const shellCommandPattern = new RegExp(`^(\\s*)(?:${commonShellCommands.join("|")})\\b`, "im");
+  if (shellCommandPattern.test(c)) {
+    score("bash", 6);
+  }
+
   if (/^\s*(echo|printf|read|if|then|else|fi|for|do|done|while|case|esac|function|return|export|local|declare|source)\b/m.test(c)) {
     score("bash", 5);
+  }
+
+  if (/\b(sudo\s+|\$\w+|\$\(.*\)|&&|\|\||\|)\b/.test(c) || /\b(2>&1|>>|<<|<\(|>\()\b/.test(c)) {
+    score("bash", 4);
   }
 
   const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
